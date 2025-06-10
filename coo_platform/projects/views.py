@@ -12,14 +12,15 @@ from django.http import JsonResponse
 from django.db.models import Q, Count, Avg
 from django.utils import timezone
 from django.urls import reverse_lazy
+from django.contrib.auth.models import User
 from .models import (
     Project, ProjectCategory, Task, ProjectMembership, 
     TaskComment, ProjectUpdate
 )
+from .forms import ProjectForm
 from core.views import DashboardMixin
 from core.utils import log_user_action, create_notification
 from tenants.middleware import get_current_tenant
-
 
 class ProjectListView(DashboardMixin, LoginRequiredMixin, ListView):
     """
@@ -31,11 +32,11 @@ class ProjectListView(DashboardMixin, LoginRequiredMixin, ListView):
     paginate_by = 20
     
     def get_queryset(self):
-        tenant = get_current_tenant()
-        if not tenant:
+        tenant_user = self.request.user.tenant_memberships.filter(is_active=True).first()
+        if not tenant_user:
             return Project.objects.none()
         
-        queryset = Project.objects.filter(tenant=tenant).select_related(
+        queryset = Project.objects.filter(tenant=tenant_user.tenant).select_related(
             'project_manager', 'category'
         ).prefetch_related('team_members')
         
@@ -68,11 +69,11 @@ class ProjectListView(DashboardMixin, LoginRequiredMixin, ListView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        tenant = get_current_tenant()
+        tenant_user = self.request.user.tenant_memberships.filter(is_active=True).first()
         
-        if tenant:
+        if tenant_user:
             context.update({
-                'categories': ProjectCategory.objects.filter(tenant=tenant, is_active=True),
+                'categories': ProjectCategory.objects.filter(tenant=tenant_user.tenant, is_active=True),
                 'status_choices': Project.STATUS_CHOICES,
                 'current_filters': {
                     'status': self.request.GET.get('status', ''),
@@ -94,10 +95,10 @@ class ProjectDetailView(DashboardMixin, LoginRequiredMixin, DetailView):
     context_object_name = 'project'
     
     def get_queryset(self):
-        tenant = get_current_tenant()
-        if not tenant:
+        tenant_user = self.request.user.tenant_memberships.filter(is_active=True).first()
+        if not tenant_user:
             return Project.objects.none()
-        return Project.objects.filter(tenant=tenant)
+        return Project.objects.filter(tenant=tenant_user.tenant)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -145,47 +146,92 @@ class ProjectCreateView(LoginRequiredMixin, CreateView):
     Create a new project.
     """
     model = Project
+    form_class = ProjectForm
     template_name = 'projects/project_form.html'
-    fields = [
-        'name', 'description', 'category', 'status', 'priority',
-        'project_manager', 'start_date', 'target_end_date',
-        'budget_allocated', 'tags'
-    ]
+    success_url = reverse_lazy('projects:list')
+    
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        tenant_user = self.request.user.tenant_memberships.filter(is_active=True).first()
+        
+        # Filter project manager choices to users in the current tenant
+        if tenant_user:
+            # Get users who are members of this tenant with appropriate roles
+            form.fields['project_manager'].queryset = User.objects.filter(
+                tenant_memberships__tenant=tenant_user.tenant,
+                tenant_memberships__is_active=True,
+                tenant_memberships__role__in=['owner', 'admin', 'manager'],
+                is_active=True
+            ).distinct()
+            
+            # Add current user if not in queryset
+            current_user = self.request.user
+            if current_user not in form.fields['project_manager'].queryset:
+                form.fields['project_manager'].queryset |= User.objects.filter(pk=current_user.pk)
+        
+        # Set current user as default project manager
+        if not form.initial.get('project_manager'):
+            form.initial['project_manager'] = self.request.user
+            form.initial['status'] = 'planning'
+            
+        return form
+
+    def get_initial(self):
+        initial = super().get_initial()
+        initial['project_manager'] = self.request.user
+        initial['status'] = 'planning'
+        return initial
     
     def form_valid(self, form):
-        tenant = get_current_tenant()
-        if not tenant:
-            messages.error(self.request, 'No tenant found.')
+        # Get tenant from user's membership
+        tenant_user = self.request.user.tenant_memberships.filter(is_active=True).first()
+        if not tenant_user:
+            messages.error(self.request, 'You need to be a member of an organization to create projects.')
             return redirect('projects:list')
         
-        form.instance.tenant = tenant
-        response = super().form_valid(form)
+        # Set tenant and save the project
+        form.instance.tenant = tenant_user.tenant
         
-        # Add creator as project member
-        ProjectMembership.objects.create(
-            project=self.object,
-            user=self.request.user,
-            role='manager',
-            can_edit_project=True,
-            can_manage_tasks=True,
-            can_invite_members=True
-        )
+        # Ensure progress_percentage has a default value
+        if form.instance.progress_percentage is None:
+            form.instance.progress_percentage = 0
         
-        log_user_action(
-            self.request, 'create', 'Project', 
-            str(self.object.id), f'Created project: {self.object.name}'
-        )
-        
-        messages.success(self.request, f'Project "{self.object.name}" created successfully.')
-        return response
+        try:
+            response = super().form_valid(form)
+            
+            # Add creator as project member
+            ProjectMembership.objects.create(
+                project=self.object,
+                user=self.request.user,
+                role='manager',
+                can_edit_project=True,
+                can_manage_tasks=True,
+                can_invite_members=True
+            )
+            
+            log_user_action(
+                self.request, 'create', 'Project', 
+                str(self.object.id), f'Created project: {self.object.name}'
+            )
+            
+            messages.success(self.request, f'Project "{self.object.name}" created successfully.')
+            return response
+            
+        except Exception as e:
+            messages.error(self.request, f'Error creating project: {str(e)}')
+            return self.form_invalid(form)
+    
+    def form_invalid(self, form):
+        messages.error(self.request, 'Please correct the errors below and try again.')
+        return super().form_invalid(form)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        tenant = get_current_tenant()
+        tenant_user = self.request.user.tenant_memberships.filter(is_active=True).first()
         
-        if tenant:
+        if tenant_user:
             context['categories'] = ProjectCategory.objects.filter(
-                tenant=tenant, is_active=True
+                tenant=tenant_user.tenant, is_active=True
             )
         
         return context
@@ -196,18 +242,38 @@ class ProjectUpdateView(LoginRequiredMixin, UpdateView):
     Update an existing project.
     """
     model = Project
+    form_class = ProjectForm
     template_name = 'projects/project_form.html'
-    fields = [
-        'name', 'description', 'category', 'status', 'priority',
-        'project_manager', 'start_date', 'target_end_date', 'actual_end_date',
-        'budget_allocated', 'budget_spent', 'progress_percentage', 'tags'
-    ]
     
     def get_queryset(self):
-        tenant = get_current_tenant()
-        if not tenant:
+        tenant_user = self.request.user.tenant_memberships.filter(is_active=True).first()
+        if not tenant_user:
             return Project.objects.none()
-        return Project.objects.filter(tenant=tenant)
+        return Project.objects.filter(tenant=tenant_user.tenant)
+    
+    def get_form(self, form_class=None):
+        form = super().get_form(form_class)
+        tenant_user = self.request.user.tenant_memberships.filter(is_active=True).first()
+        
+        # Filter project manager choices to users in the current tenant
+        if tenant_user:
+            # Get users who are members of this tenant with appropriate roles
+            form.fields['project_manager'].queryset = User.objects.filter(
+                tenant_memberships__tenant=tenant_user.tenant,
+                tenant_memberships__is_active=True,
+                tenant_memberships__role__in=['owner', 'admin', 'manager'],
+                is_active=True
+            ).distinct()
+            
+            # Add current user if not in queryset
+            current_user = self.request.user
+            if current_user not in form.fields['project_manager'].queryset:
+                form.fields['project_manager'].queryset |= User.objects.filter(pk=current_user.pk)
+            
+        return form
+
+    def get_success_url(self):
+        return reverse_lazy('projects:detail', kwargs={'pk': self.object.pk})
     
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -222,11 +288,11 @@ class ProjectUpdateView(LoginRequiredMixin, UpdateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        tenant = get_current_tenant()
+        tenant_user = self.request.user.tenant_memberships.filter(is_active=True).first()
         
-        if tenant:
+        if tenant_user:
             context['categories'] = ProjectCategory.objects.filter(
-                tenant=tenant, is_active=True
+                tenant=tenant_user.tenant, is_active=True
             )
         
         return context
@@ -237,12 +303,12 @@ def create_task(request, project_id):
     """
     Create a new task for a project.
     """
-    tenant = get_current_tenant()
-    if not tenant:
-        messages.error(request, 'No tenant found.')
+    tenant_user = request.user.tenant_memberships.filter(is_active=True).first()
+    if not tenant_user:
+        messages.error(request, 'You need to be a member of an organization to create tasks.')
         return redirect('projects:list')
     
-    project = get_object_or_404(Project, id=project_id, tenant=tenant)
+    project = get_object_or_404(Project, id=project_id, tenant=tenant_user.tenant)
     
     # Check permissions
     user_membership = ProjectMembership.objects.filter(
@@ -327,12 +393,12 @@ def update_task_status(request, task_id):
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'Invalid method'})
     
-    tenant = get_current_tenant()
-    if not tenant:
-        return JsonResponse({'success': False, 'error': 'No tenant found'})
+    tenant_user = request.user.tenant_memberships.filter(is_active=True).first()
+    if not tenant_user:
+        return JsonResponse({'success': False, 'error': 'No tenant access'})
     
     try:
-        task = Task.objects.get(id=task_id, project__tenant=tenant)
+        task = Task.objects.get(id=task_id, project__tenant=tenant_user.tenant)
     except Task.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Task not found'})
     
@@ -382,12 +448,12 @@ def project_dashboard_data(request, project_id):
     """
     Get project dashboard data (AJAX endpoint).
     """
-    tenant = get_current_tenant()
-    if not tenant:
-        return JsonResponse({'error': 'No tenant found'}, status=404)
+    tenant_user = request.user.tenant_memberships.filter(is_active=True).first()
+    if not tenant_user:
+        return JsonResponse({'error': 'No tenant access'}, status=404)
     
     try:
-        project = Project.objects.get(id=project_id, tenant=tenant)
+        project = Project.objects.get(id=project_id, tenant=tenant_user.tenant)
     except Project.DoesNotExist:
         return JsonResponse({'error': 'Project not found'}, status=404)
     

@@ -117,7 +117,7 @@ def json_script_safe(value):
     """Safely convert Python object to JSON for use in templates"""
     return mark_safe(json.dumps(value))
 
-@register.simple_tag
+@register.filter
 def performance_status_color(status):
     """Get Bootstrap color class for performance status"""
     colors = {

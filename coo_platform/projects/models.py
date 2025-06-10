@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.urls import reverse
 from core.models import TimeStampedModel, UUIDModel
 from tenants.models import TenantAwareModel
+from tenants.middleware import TenantAwareManager
 import uuid
 
 
@@ -15,6 +16,8 @@ class ProjectCategory(TenantAwareModel, TimeStampedModel):
     """
     Categories for organizing projects.
     """
+    objects = TenantAwareManager()
+
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     color = models.CharField(max_length=7, default='#007bff', help_text="Hex color code")
@@ -33,6 +36,9 @@ class Project(UUIDModel, TenantAwareModel, TimeStampedModel):
     """
     Main project model with comprehensive tracking capabilities.
     """
+    # Use the tenant-aware manager
+    objects = TenantAwareManager()
+
     STATUS_CHOICES = [
         ('planning', 'Planning'),
         ('active', 'Active'),

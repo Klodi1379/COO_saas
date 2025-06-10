@@ -30,6 +30,7 @@ class Tenant(UUIDModel, TimeStampedModel):
     name = models.CharField(max_length=200, help_text="Company/Organization name")
     slug = models.SlugField(unique=True, max_length=100, help_text="URL-friendly identifier")
     domain = models.CharField(max_length=100, blank=True, help_text="Custom domain (optional)")
+    owner = models.ForeignKey(User, on_delete=models.PROTECT, related_name='owned_tenants', null=True, blank=True, help_text="Tenant owner")
     
     # Contact Information
     contact_email = models.EmailField()

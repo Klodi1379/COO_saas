@@ -1,218 +1,886 @@
 {% extends 'base.html' %}
 {% load crispy_forms_tags %}
+{% load coo_extras %}
 
 {% block title %}{% if object %}Edit Project{% else %}New Project{% endif %} - COO Platform{% endblock %}
+
+{% block extra_css %}
+<!-- Flatpickr CSS -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css">
+<style>
+    /* CSS Variables for easy theming */
+    :root {
+        --c-primary: #0d6efd;
+        --c-primary-rgb: 13, 110, 253;
+        --c-secondary: #6c757d;
+        --c-light: #f8f9fa;
+        --c-bg: #eef2f7; /* A softer background color */
+        --c-border: #dee2e6;
+        --c-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        --border-radius: 0.75rem;
+    }
+
+    /* Override Bootstrap variables if needed or just use ours */
+    body {
+        background-color: var(--c-bg);
+    }
+    
+    .card {
+        border-radius: var(--border-radius);
+        border: none;
+    }
+
+    .card-header-gradient {
+        background: linear-gradient(135deg, rgba(var(--c-primary-rgb), 0.95), rgba(var(--c-primary-rgb), 0.8));
+        border-bottom: none;
+        border-top-left-radius: var(--border-radius);
+        border-top-right-radius: var(--border-radius);
+    }
+
+    .form-section {
+        background: #ffffff;
+        border: 1px solid var(--c-border);
+        border-radius: var(--border-radius);
+        padding: 1.75rem;
+        margin-bottom: 1.5rem;
+        box-shadow: var(--c-shadow);
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    }
+    
+    .form-section:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-section-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-section-header i {
+        font-size: 1.1rem;
+        margin-right: 0.75rem;
+        color: var(--c-primary);
+        width: 30px;
+        height: 30px;
+        background: rgba(var(--c-primary-rgb), 0.1);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+    
+    .form-section-header h3 {
+        font-weight: 600;
+        color: #343a40;
+    }
+
+    /* --- Enhanced Priority Selector --- */
+    .priority-selector {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    .priority-selector input[type="radio"] {
+        display: none; /* Hide the actual radio button */
+    }
+    .priority-selector .priority-label {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-weight: 500;
+        cursor: pointer;
+        border: 2px solid transparent;
+        transition: all 0.2s ease-in-out;
+    }
+    
+    /* Style for checked state */
+    .priority-selector input[type="radio"]:checked + .priority-label {
+        transform: scale(1.05);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    .priority-label.priority-low { background-color: #d1e7dd; color: #0f5132; }
+    input:checked + .priority-label.priority-low { border-color: #0f5132; }
+
+    .priority-label.priority-medium { background-color: #fff3cd; color: #664d03; }
+    input:checked + .priority-label.priority-medium { border-color: #664d03; }
+
+    .priority-label.priority-high { background-color: #f8d7da; color: #842029; }
+    input:checked + .priority-label.priority-high { border-color: #842029; }
+    
+    .priority-label.priority-urgent { background-color: #dc3545; color: white; }
+    input:checked + .priority-label.priority-urgent { border-color: #fff; }
+
+    /* --- Animated Progress Bar --- */
+    .progress-bar-container {
+        height: 8px;
+        background: var(--c-light);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #0d6efd, #3c8dff);
+        border-radius: 4px;
+        transition: width 0.5s ease-in-out;
+    }
+    
+    /* --- Stylish Tag Pills --- */
+    .tag-pill {
+        display: inline-flex;
+        align-items: center;
+        background: rgba(var(--c-primary-rgb), 0.1);
+        color: var(--c-primary);
+        padding: 0.5rem 1rem;
+        border-radius: 50px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    .tag-pill:hover {
+        background: rgba(var(--c-primary-rgb), 0.15);
+        transform: translateY(-1px);
+    }
+    .tag-pill i {
+        margin-left: 0.75rem;
+        cursor: pointer;
+        font-size: 0.75rem;
+        width: 18px;
+        height: 18px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: rgba(var(--c-primary-rgb), 0.2);
+        color: var(--c-primary);
+        transition: all 0.2s ease;
+    }
+    .tag-pill i:hover {
+        background: #dc3545;
+        color: white;
+    }
+    
+    /* General improvements */
+    .form-control, .form-select {
+        border-radius: 0.5rem;
+    }
+    .btn {
+        border-radius: 50px;
+        font-weight: 600;
+        padding: 0.75rem 1.5rem;
+        transition: all 0.2s ease-in-out;
+    }
+    .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 10px rgba(var(--c-primary-rgb), 0.3);
+    }
+    .btn-outline-secondary:hover {
+        box-shadow: 0 4px 10px rgba(108, 117, 125, 0.2);
+    }
+
+    /* Project Icon */
+    .project-icon {
+        width: 48px;
+        height: 48px;
+        background: rgba(var(--c-primary-rgb), 0.1);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Wizard Progress */
+    .wizard-progress {
+        position: relative;
+        padding: 0 2rem;
+    }
+    
+    .wizard-progress::before {
+        content: '';
+        position: absolute;
+        top: 25px;
+        left: 50px;
+        right: 50px;
+        height: 2px;
+        background: var(--c-border);
+        z-index: 1;
+    }
+
+    .wizard-step {
+        text-align: center;
+        position: relative;
+        z-index: 2;
+    }
+
+    .wizard-step-icon {
+        width: 50px;
+        height: 50px;
+        background: white;
+        border: 2px solid var(--c-border);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 0.5rem;
+        color: var(--c-secondary);
+        transition: all 0.3s ease;
+    }
+
+    .wizard-step.active .wizard-step-icon {
+        background: var(--c-primary);
+        border-color: var(--c-primary);
+        color: white;
+        box-shadow: 0 0 0 5px rgba(var(--c-primary-rgb), 0.2);
+    }
+
+    .wizard-step-label {
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--c-secondary);
+    }
+
+    .wizard-step.active .wizard-step-label {
+        color: var(--c-primary);
+    }
+
+    /* --- Enhanced Tag Input --- */
+    .tag-input-container {
+        background: white;
+        min-height: 3rem;
+        padding: 0.5rem 1rem;
+        border-radius: var(--border-radius);
+        border: 1px solid var(--c-border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        align-items: center;
+        transition: all 0.3s ease;
+    }
+
+    .tag-input-container:focus-within {
+        border-color: var(--c-primary);
+        box-shadow: 0 0 0 3px rgba(var(--c-primary-rgb), 0.1);
+    }
+
+    .tag-input {
+        flex: 1;
+        min-width: 150px;
+        border: none;
+        background: none;
+        outline: none;
+        padding: 0.5rem;
+        font-size: 0.95rem;
+        color: var(--c-secondary);
+    }
+
+    .tag-input::placeholder {
+        color: #adb5bd;
+        font-size: 0.9rem;
+    }
+
+    #id_tags {
+        display: none;
+    }
+
+    /* Datalist Styling */
+    datalist {
+        display: none;
+    }
+
+    /* --- Flatpickr Calendar Styling --- */
+    .flatpickr-calendar {
+        border-radius: var(--border-radius);
+        box-shadow: var(--c-shadow);
+        border: 1px solid var(--c-border);
+        font-family: inherit;
+    }
+
+    .flatpickr-calendar.animate.open {
+        animation: fpFadeInDown 200ms ease-out;
+    }
+
+    .flatpickr-months {
+        background: var(--c-primary);
+        border-top-left-radius: var(--border-radius);
+        border-top-right-radius: var(--border-radius);
+        padding: 0.5rem;
+    }
+
+    .flatpickr-months .flatpickr-month {
+        color: white;
+    }
+
+    .flatpickr-months .flatpickr-prev-month,
+    .flatpickr-months .flatpickr-next-month {
+        color: rgba(255, 255, 255, 0.7);
+        padding: 0.5rem;
+    }
+
+    .flatpickr-months .flatpickr-prev-month:hover,
+    .flatpickr-months .flatpickr-next-month:hover {
+        color: white;
+    }
+
+    .flatpickr-current-month {
+        font-size: 1rem;
+        padding: 0.5rem 0;
+    }
+
+    .flatpickr-current-month .flatpickr-monthDropdown-months {
+        background: transparent;
+        border: none;
+        color: white;
+    }
+
+    .flatpickr-day {
+        border-radius: 50%;
+        margin: 0.2rem;
+    }
+
+    .flatpickr-day.selected,
+    .flatpickr-day.startRange,
+    .flatpickr-day.endRange,
+    .flatpickr-day.selected.inRange,
+    .flatpickr-day.startRange.inRange,
+    .flatpickr-day.endRange.inRange,
+    .flatpickr-day.selected:focus,
+    .flatpickr-day.startRange:focus,
+    .flatpickr-day.endRange:focus,
+    .flatpickr-day.selected:hover,
+    .flatpickr-day.startRange:hover,
+    .flatpickr-day.endRange:hover {
+        background: var(--c-primary);
+        border-color: var(--c-primary);
+        color: white;
+    }
+
+    .flatpickr-day.selected.startRange + .endRange:not(:nth-child(7n+1)),
+    .flatpickr-day.startRange.startRange + .endRange:not(:nth-child(7n+1)),
+    .flatpickr-day.endRange.startRange + .endRange:not(:nth-child(7n+1)) {
+        box-shadow: -10px 0 0 var(--c-primary);
+    }
+
+    .flatpickr-day.inRange,
+    .flatpickr-day.prevMonthDay.inRange,
+    .flatpickr-day.nextMonthDay.inRange,
+    .flatpickr-day.today.inRange,
+    .flatpickr-day.prevMonthDay.today.inRange,
+    .flatpickr-day.nextMonthDay.today.inRange,
+    .flatpickr-day:hover,
+    .flatpickr-day.prevMonthDay:hover,
+    .flatpickr-day.nextMonthDay:hover,
+    .flatpickr-day:focus,
+    .flatpickr-day.prevMonthDay:focus,
+    .flatpickr-day.nextMonthDay:focus {
+        background: rgba(var(--c-primary-rgb), 0.1);
+        border-color: transparent;
+    }
+
+    .flatpickr-day.today {
+        border-color: var(--c-primary);
+    }
+
+    .flatpickr-calendar.hasTime .flatpickr-time {
+        border-top-color: var(--c-border);
+    }
+
+    .flatpickr-time input:hover,
+    .flatpickr-time .flatpickr-am-pm:hover,
+    .flatpickr-time input:focus,
+    .flatpickr-time .flatpickr-am-pm:focus {
+        background: rgba(var(--c-primary-rgb), 0.1);
+    }
+
+    /* Date Input Styling */
+    .date-input-group {
+        position: relative;
+        margin-bottom: 1.5rem;
+    }
+
+    .date-input-group .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+        color: var(--c-secondary);
+    }
+
+    .date-input-group i {
+        z-index: 2;
+        color: var(--c-primary);
+        opacity: 0.7;
+        transition: opacity 0.2s ease;
+    }
+
+    .date-input-group:hover i {
+        opacity: 1;
+    }
+
+    .date-input-group input {
+        padding-left: 2.5rem !important;
+        background: white !important;
+    }
+
+    .date-input-group input:focus {
+        border-color: var(--c-primary);
+        box-shadow: 0 0 0 0.2rem rgba(var(--c-primary-rgb), 0.25);
+    }
+
+    /* Hide default calendar icon */
+    input[type="date"]::-webkit-calendar-picker-indicator,
+    input[type="date"]::-webkit-inner-spin-button {
+        display: none;
+        -webkit-appearance: none;
+    }
+
+    /* Customize calendar appearance */
+    .flatpickr-day.today:hover {
+        background: rgba(var(--c-primary-rgb), 0.15);
+    }
+    
+    .flatpickr-day.today.selected {
+        background: var(--c-primary);
+    }
+
+    .flatpickr-months .flatpickr-prev-month svg,
+    .flatpickr-months .flatpickr-next-month svg {
+        fill: rgba(255, 255, 255, 0.7);
+    }
+
+    .flatpickr-months .flatpickr-prev-month:hover svg,
+    .flatpickr-months .flatpickr-next-month:hover svg {
+        fill: white;
+    }
+
+    /* Currency Input */
+    .position-relative input[type="number"] {
+        padding-left: 2.5rem !important;
+    }
+</style>
+{% endblock %}
 
 {% block breadcrumbs %}
 {{ block.super }}
 <li class="breadcrumb-item"><a href="{% url 'projects:list' %}">Projects</a></li>
-<li class="breadcrumb-item active">{% if object %}Edit{% else %}New{% endif %}</li>
+<li class="breadcrumb-item active" aria-current="page">{% if object %}Edit{% else %}New{% endif %}</li>
 {% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-lg-8">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    {% if object %}
-                        <i class="fas fa-edit me-2"></i>Edit Project: {{ object.name }}
-                    {% else %}
-                        <i class="fas fa-plus me-2"></i>Create New Project
+<div class="min-vh-100 bg-light py-4">
+    <div class="container-fluid">
+        <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+
+            <!-- Form Errors Display -->
+            {% if form.errors or form.non_field_errors %}
+            <div class="alert alert-danger mb-4" role="alert">
+                <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Please correct the following errors:</h5>
+                {% if form.non_field_errors %}
+                    {% for error in form.non_field_errors %}
+                        <div>{{ error }}</div>
+                    {% endfor %}
+                {% endif %}
+                {% for field, errors in form.errors.items %}
+                    {% if field != '__all__' %}
+                        <div><strong>{{ field|title }}:</strong> 
+                            {% for error in errors %}{{ error }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                        </div>
                     {% endif %}
-                </h5>
+                {% endfor %}
             </div>
-            
-            <div class="card-body">
-                <form method="post" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    
-                    <div class="row">
-                        <div class="col-md-8">
-                            <div class="mb-3">
-                                <label for="{{ form.name.id_for_label }}" class="form-label">Project Name *</label>
-                                {{ form.name }}
-                                {% if form.name.errors %}
-                                <div class="invalid-feedback d-block">
-                                    {{ form.name.errors }}
+            {% endif %}
+
+            <!-- Header Section -->
+            <div class="card shadow-sm mb-4 border-0">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="d-flex align-items-center gap-3">
+                                <div class="project-icon">
+                                    <i class="fas fa-project-diagram fa-2x text-primary"></i>
                                 </div>
-                                {% endif %}
+                                <div>
+                                    <h1 class="h3 mb-1">{% if object %}Edit Project{% else %}Create New Project{% endif %}</h1>
+                                    <p class="mb-0 text-muted">{% if object %}Update the details for "{{ object.name }}"{% else %}Fill out the form to get your project started{% endif %}</p>
+                                </div>
                             </div>
                         </div>
-                        
-                        <div class="col-md-4">
-                            <div class="mb-3">
-                                <label for="{{ form.priority.id_for_label }}" class="form-label">Priority</label>
-                                {{ form.priority }}
+                        <div class="d-flex gap-2">
+                            <a href="{% if object %}{% url 'projects:detail' object.pk %}{% else %}{% url 'projects:list' %}{% endif %}" 
+                               class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Back
+                            </a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-save me-2"></i>{% if object %}Update Project{% else %}Create Project{% endif %}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Wizard Progress -->
+            <div class="card shadow-sm mb-4 border-0">
+                <div class="card-body">
+                    <div class="wizard-progress d-flex justify-content-between">
+                        <div class="wizard-step active">
+                            <div class="wizard-step-icon">
+                                <i class="fas fa-info-circle"></i>
                             </div>
+                            <div class="wizard-step-label">Basic Info</div>
+                        </div>
+                        <div class="wizard-step active">
+                            <div class="wizard-step-icon">
+                                <i class="fas fa-cogs"></i>
+                            </div>
+                            <div class="wizard-step-label">Details</div>
+                        </div>
+                        <div class="wizard-step active">
+                            <div class="wizard-step-icon">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="wizard-step-label">Team</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-4">
+            <!-- Left Column: Core Information -->
+            <div class="col-lg-8">
+                <div class="form-section">
+                    <div class="form-section-header">
+                        <i class="fas fa-pencil-ruler"></i>
+                        <h3 class="h6 mb-0">Core Details</h3>
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.name|as_crispy_field }}
+                    </div>
+                    
+                    <div class="mb-3">
+                        {{ form.description|as_crispy_field }}
+                        <div class="form-text">Provide a detailed description of project goals and scope.</div>
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6 mb-3">
+                            {{ form.category|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.budget_allocated|as_crispy_field }}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="tag-input" class="form-label mb-2">
+                            <i class="fas fa-tags me-2 text-primary"></i>Project Tags
+                        </label>
+                        <div class="tag-input-container">
+                            <div id="tags-preview" class="d-flex flex-wrap gap-2"></div>
+                            <input type="text" class="tag-input" id="tag-input" 
+                                   placeholder="Type tag and press Enter..."
+                                   list="common-tags">
+                        </div>
+                        <div class="form-text mt-2">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Suggested tags: web, mobile, backend, frontend, api, design
+                        </div>
+                        <datalist id="common-tags">
+                            <option value="web">
+                            <option value="mobile">
+                            <option value="backend">
+                            <option value="frontend">
+                            <option value="api">
+                            <option value="design">
+                        </datalist>
+                        {{ form.tags }}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Metadata & Status -->
+            <div class="col-lg-4">
+                <div class="form-section">
+                    <div class="form-section-header">
+                        <i class="fas fa-clipboard-check"></i>
+                        <h3 class="h6 mb-0">Status & Assignment</h3>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Priority</label>
+                        <div class="priority-selector">
+                            {% for value, label in form.priority.field.choices %}
+                                <input class="form-check-input" type="radio" 
+                                       name="{{ form.priority.name }}" 
+                                       id="priority-{{ value }}" 
+                                       value="{{ value }}"
+                                       {% if form.priority.value|stringformat:"s" == value|stringformat:"s" %}checked{% endif %}>
+                                <label class="priority-label priority-{{ value }}" for="priority-{{ value }}">
+                                    <i class="fas fa-flag me-2"></i>{{ label }}
+                                </label>
+                            {% endfor %}
                         </div>
                     </div>
                     
                     <div class="mb-3">
-                        <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
-                        {{ form.description }}
-                        <div class="form-text">Provide a detailed description of the project goals and scope.</div>
+                        {{ form.status|as_crispy_field }}
                     </div>
                     
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="{{ form.category_id.id_for_label }}" class="form-label">Category</label>
-                                {{ form.category_id }}
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="{{ form.status.id_for_label }}" class="form-label">Status</label>
-                                {{ form.status }}
-                            </div>
-                        </div>
+                    <div class="mb-3">
+                        {{ form.project_manager|as_crispy_field }}
                     </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="{{ form.start_date.id_for_label }}" class="form-label">Start Date</label>
-                                {{ form.start_date }}
+
+                    <div class="row g-3">
+                        <div class="col-sm-6 mb-3">
+                            <div class="date-input-group">
+                                <label for="id_start_date" class="form-label">Start Date</label>
+                                <div class="position-relative">
+                                    <i class="fas fa-calendar-day position-absolute ms-3 top-50 translate-middle-y text-primary"></i>
+                                    <input type="text" name="start_date" id="id_start_date" 
+                                           class="form-control ps-5" 
+                                           value="{{ form.start_date.value|default:'' }}"
+                                           placeholder="Select start date"
+                                           data-input>
+                                </div>
                             </div>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="{{ form.target_end_date.id_for_label }}" class="form-label">Target End Date</label>
-                                {{ form.target_end_date }}
+                        <div class="col-sm-6 mb-3">
+                            <div class="date-input-group">
+                                <label for="id_target_end_date" class="form-label">Target End Date</label>
+                                <div class="position-relative">
+                                    <i class="fas fa-calendar-check position-absolute ms-3 top-50 translate-middle-y text-primary"></i>
+                                    <input type="text" name="target_end_date" id="id_target_end_date" 
+                                           class="form-control ps-5" 
+                                           value="{{ form.target_end_date.value|default:'' }}"
+                                           placeholder="Select target end date"
+                                           data-input>
+                                </div>
                             </div>
                         </div>
                     </div>
                     
                     {% if object %}
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="{{ form.progress_percentage.id_for_label }}" class="form-label">Progress (%)</label>
-                                {{ form.progress_percentage }}
-                                <div class="form-text">Current project completion percentage (0-100).</div>
+                    <hr class="my-3">
+                    <div class="row g-3">
+                        <div class="col-sm-6 mb-3">
+                            <div class="date-input-group">
+                                <label for="id_actual_end_date" class="form-label">Actual End Date</label>
+                                <div class="position-relative">
+                                    <i class="fas fa-calendar-times position-absolute ms-3 top-50 translate-middle-y text-primary"></i>
+                                    <input type="text" name="actual_end_date" id="id_actual_end_date" 
+                                           class="form-control ps-5" 
+                                           value="{{ form.actual_end_date.value|default:'' }}"
+                                           placeholder="Select actual end date"
+                                           data-input>
+                                </div>
                             </div>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="{{ form.actual_end_date.id_for_label }}" class="form-label">Actual End Date</label>
-                                {{ form.actual_end_date }}
-                                <div class="form-text">Set when project is completed.</div>
+                        <div class="col-sm-6 mb-3">
+                            <div class="position-relative">
+                                <i class="fas fa-dollar-sign position-absolute ms-3 top-50 translate-middle-y text-muted"></i>
+                                {{ form.budget_spent|as_crispy_field }}
                             </div>
                         </div>
                     </div>
+                    
+                    <!-- Progress tracking for all projects -->
+                    <div class="mb-3">
+                        {{ form.progress_percentage|as_crispy_field }}
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="progress-visual" 
+                                 style="width: {{ form.progress_percentage.value|default:0 }}%;"></div>
+                        </div>
+                    </div>
+                    
                     {% endif %}
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="{{ form.budget_allocated.id_for_label }}" class="form-label">Budget Allocated</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    {{ form.budget_allocated }}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        {% if object %}
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="{{ form.budget_spent.id_for_label }}" class="form-label">Budget Spent</label>
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    {{ form.budget_spent }}
-                                </div>
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="{{ form.project_manager_id.id_for_label }}" class="form-label">Project Manager</label>
-                        {{ form.project_manager_id }}
-                        <div class="form-text">Select the person responsible for managing this project.</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="{{ form.tags.id_for_label }}" class="form-label">Tags</label>
-                        {{ form.tags }}
-                        <div class="form-text">Enter tags separated by commas (e.g., "web, frontend, urgent").</div>
-                    </div>
-                    
-                    <div class="d-flex justify-content-between">
-                        <a href="{% if object %}{% url 'projects:detail' object.pk %}{% else %}{% url 'projects:list' %}{% endif %}" 
-                           class="btn btn-outline-secondary">
-                            <i class="fas fa-times me-1"></i>Cancel
-                        </a>
-                        
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-1"></i>
-                            {% if object %}Update Project{% else %}Create Project{% endif %}
-                        </button>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
-    </div>
+    </form>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<!-- Flatpickr JS -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Auto-generate slug from name (if needed)
-    const nameField = document.getElementById('id_name');
-    const descriptionField = document.getElementById('id_description');
-    
-    // Auto-resize textarea
-    function autoResize(textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = textarea.scrollHeight + 'px';
-    }
-    
-    if (descriptionField) {
-        descriptionField.addEventListener('input', function() {
-            autoResize(this);
+    // --- Initialize Tag Management System ---
+    const tagsField = document.getElementById('id_tags');
+    const tagsPreview = document.getElementById('tags-preview');
+    const tagInput = document.getElementById('tag-input');
+
+    function setupTagManagement() {
+        if (!tagsField || !tagsPreview || !tagInput) return;
+
+        // Initialize tags from field if they exist
+        if (tagsField.value) {
+            const existingTags = tagsField.value.split(',')
+                .map(tag => tag.trim())
+                .filter(tag => tag);
+            tagsField.value = existingTags.join(',');
+            renderTags(existingTags);
+        }
+
+        // Handle tag input
+        tagInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                const tag = this.value.trim();
+                if (tag) {
+                    addTag(tag);
+                    this.value = '';
+                }
+            }
         });
-        autoResize(descriptionField);
+
+        // Handle tag removal
+        tagsPreview.addEventListener('click', function(e) {
+            if (e.target.matches('.fas.fa-times')) {
+                const tagToRemove = e.target.dataset.tag;
+                if (tagToRemove) {
+                    removeTag(tagToRemove);
+                }
+            }
+        });
     }
+
+    function addTag(tag) {
+        const currentTags = tagsField.value ? 
+            tagsField.value.split(',').map(t => t.trim()) : [];
+            
+        if (!currentTags.includes(tag)) {
+            currentTags.push(tag);
+            tagsField.value = currentTags.join(',');
+            renderTags(currentTags);
+        }
+    }
+
+    function removeTag(tagToRemove) {
+        const currentTags = tagsField.value.split(',')
+            .map(t => t.trim())
+            .filter(t => t && t !== tagToRemove);
+        tagsField.value = currentTags.join(',');
+        renderTags(currentTags);
+    }
+
+    function renderTags(tags) {
+        tagsPreview.innerHTML = '';
+        tags.forEach(tag => {
+            const tagElement = document.createElement('span');
+            tagElement.className = 'tag-pill';
+            tagElement.innerHTML = `
+                ${tag}
+                <i class="fas fa-times" data-tag="${tag}"></i>
+            `;
+            tagsPreview.appendChild(tagElement);
+        });
+    }
+
+    // Initialize tag management
+    setupTagManagement();
     
-    // Date validation
+    
+    // --- Initialize Third-party Libraries ---
+    // Initialize Flatpickr for beautiful date pickers
+    function initializeFlatpickr(inputElement) {
+        if (!inputElement) return;
+        
+        return flatpickr(inputElement, {
+            dateFormat: "Y-m-d",
+            altInput: true,
+            altFormat: "F j, Y",
+            theme: "material_blue",
+            animate: true,
+            allowInput: true,
+            disableMobile: true,
+            prevArrow: '<i class="fas fa-chevron-left"></i>',
+            nextArrow: '<i class="fas fa-chevron-right"></i>',
+            onChange: function(selectedDates, dateStr, instance) {
+                if (selectedDates.length) {
+                    instance.input.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        });
+    }
+
+    // Initialize all date inputs with Flatpickr
+    const dateInputs = [
+        document.getElementById('id_start_date'),
+        document.getElementById('id_target_end_date'),
+        document.getElementById('id_actual_end_date')
+    ].filter(Boolean);
+
+    dateInputs.forEach(input => initializeFlatpickr(input));
+
+    // Add label attributes for accessibility
+    const dateLabels = {
+        'id_start_date': 'Start Date',
+        'id_target_end_date': 'Target End Date',
+        'id_actual_end_date': 'Actual End Date'
+    };
+
+    dateInputs.forEach(input => {
+        if (input) {
+            input.setAttribute('aria-label', dateLabels[input.id]);
+            // Also add data attributes for any existing values
+            if (input.value) {
+                input.dataset.date = input.value;
+            }
+        }
+    });
+
+    // --- Form Interactivity ---
+
+    // 1. Auto-resizing for textareas
+    const textareas = document.querySelectorAll('textarea');
+    const autoResize = (el) => {
+        el.style.height = 'auto';
+        el.style.height = (el.scrollHeight) + 'px';
+    };
+    textareas.forEach(textarea => {
+        textarea.addEventListener('input', () => autoResize(textarea));
+        autoResize(textarea); // Initial resize
+    });
+
+    // 2. Dynamic Progress Bar / Range Slider
+    const progressSlider = document.getElementById('id_progress_percentage');
+    const progressVisual = document.getElementById('progress-visual');
+    const progressValue = document.getElementById('progress-value');
+    
+    if (progressSlider && progressVisual && progressValue) {
+        const updateProgress = () => {
+            const value = progressSlider.value;
+            progressVisual.style.width = value + '%';
+            progressValue.textContent = value;
+        };
+        progressSlider.addEventListener('input', updateProgress);
+        updateProgress(); // Initial sync
+    }
+
+
+    // --- Form Validation ---
     const startDateField = document.getElementById('id_start_date');
     const endDateField = document.getElementById('id_target_end_date');
     
-    function validateDates() {
-        if (startDateField.value && endDateField.value) {
-            const startDate = new Date(startDateField.value);
-            const endDate = new Date(endDateField.value);
-            
-            if (startDate > endDate) {
-                endDateField.setCustomValidity('End date must be after start date');
+    const validateDates = () => {
+        if (startDateField && endDateField && startDateField.value && endDateField.value) {
+            if (new Date(startDateField.value) > new Date(endDateField.value)) {
+                endDateField.setCustomValidity('Target End Date cannot be before the Start Date.');
+                endDateField.reportValidity();
             } else {
                 endDateField.setCustomValidity('');
             }
         }
-    }
-    
+    };
+
     if (startDateField && endDateField) {
         startDateField.addEventListener('change', validateDates);
         endDateField.addEventListener('change', validateDates);
-    }
-    
-    // Progress validation
-    const progressField = document.getElementById('id_progress_percentage');
-    if (progressField) {
-        progressField.addEventListener('input', function() {
-            const value = parseInt(this.value);
-            if (value < 0 || value > 100) {
-                this.setCustomValidity('Progress must be between 0 and 100');
-            } else {
-                this.setCustomValidity('');
-            }
-        });
     }
 });
 </script>
