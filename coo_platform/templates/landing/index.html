@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COO Platform - Your Operating Platform</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --secondary-color: #6c757d;
+            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        .hero-section {
+            background: var(--gradient-primary);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+        }
+        
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            background: var(--gradient-primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 1rem;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+        }
+        
+        .btn-primary {
+            background: var(--gradient-primary);
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+        }
+        
+        .btn-outline-primary {
+            border: 2px solid white;
+            color: white;
+            border-radius: 0.5rem;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+        }
+        
+        .btn-outline-primary:hover {
+            background: white;
+            color: var(--primary-color);
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+        
+        .section-padding {
+            padding: 5rem 0;
+        }
+        
+        .bg-light-custom {
+            background: #f8f9fa !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top" style="background: rgba(102, 126, 234, 0.95);">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-chart-line me-2"></i>
+                COO Platform
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#features">Features</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#pricing">Pricing</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'account_login' %}">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-outline-primary ms-2" href="{% url 'account_signup' %}">Get Started</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6">
+                    <h1 class="display-4 fw-bold mb-4">
+                        Your Operating Platform for Business Excellence
+                    </h1>
+                    <p class="lead mb-4">
+                        Streamline operations, track KPIs, manage projects, and automate workflows 
+                        with our comprehensive COO-as-a-Service platform.
+                    </p>
+                    <div class="d-flex gap-3">
+                        <a href="{% url 'account_signup' %}" class="btn btn-primary btn-lg">
+                            Start Free Trial
+                        </a>
+                        <a href="#features" class="btn btn-outline-primary btn-lg">
+                            Learn More
+                        </a>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="text-center">
+                        <i class="fas fa-chart-line" style="font-size: 15rem; opacity: 0.1;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Features Section -->
+    <section id="features" class="section-padding">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="display-5 fw-bold">Everything You Need to Operate Efficiently</h2>
+                <p class="lead text-muted">Comprehensive tools for modern business operations</p>
+            </div>
+            
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 text-center p-4">
+                        <div class="feature-icon mx-auto">
+                            <i class="fas fa-project-diagram"></i>
+                        </div>
+                        <h5 class="fw-bold">Project Management</h5>
+                        <p class="text-muted">
+                            Organize projects, assign tasks, track progress, and manage resources 
+                            with our intuitive project management tools.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 text-center p-4">
+                        <div class="feature-icon mx-auto">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <h5 class="fw-bold">KPI Tracking</h5>
+                        <p class="text-muted">
+                            Monitor key performance indicators in real-time with customizable 
+                            dashboards and automated alerts.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 text-center p-4">
+                        <div class="feature-icon mx-auto">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h5 class="fw-bold">Workflow Automation</h5>
+                        <p class="text-muted">
+                            Automate repetitive tasks and processes with our intelligent 
+                            automation engine and custom triggers.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 text-center p-4">
+                        <div class="feature-icon mx-auto">
+                            <i class="fas fa-tachometer-alt"></i>
+                        </div>
+                        <h5 class="fw-bold">Real-time Dashboards</h5>
+                        <p class="text-muted">
+                            Get instant visibility into your operations with customizable 
+                            dashboards and real-time data updates.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 text-center p-4">
+                        <div class="feature-icon mx-auto">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <h5 class="fw-bold">Team Collaboration</h5>
+                        <p class="text-muted">
+                            Enable seamless collaboration with role-based permissions, 
+                            notifications, and team management tools.
+                        </p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 text-center p-4">
+                        <div class="feature-icon mx-auto">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h5 class="fw-bold">Enterprise Security</h5>
+                        <p class="text-muted">
+                            Protect your data with enterprise-grade security, multi-tenant 
+                            isolation, and comprehensive audit trails.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Pricing Section -->
+    <section id="pricing" class="section-padding bg-light-custom">
+        <div class="container">
+            <div class="text-center mb-5">
+                <h2 class="display-5 fw-bold">Simple, Transparent Pricing</h2>
+                <p class="lead text-muted">Choose the plan that fits your organization</p>
+            </div>
+            
+            <div class="row g-4 justify-content-center">
+                <div class="col-lg-4">
+                    <div class="card h-100 text-center p-4">
+                        <h5 class="fw-bold">Basic</h5>
+                        <div class="display-6 fw-bold text-primary mb-3">$99<small class="fs-6 text-muted">/month</small></div>
+                        <ul class="list-unstyled">
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Up to 5 projects</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>3 team members</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Basic KPI tracking</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Email support</li>
+                        </ul>
+                        <a href="{% url 'account_signup' %}" class="btn btn-outline-primary">Get Started</a>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card h-100 text-center p-4 border-primary">
+                        <div class="badge bg-primary mb-3">Most Popular</div>
+                        <h5 class="fw-bold">Professional</h5>
+                        <div class="display-6 fw-bold text-primary mb-3">$299<small class="fs-6 text-muted">/month</small></div>
+                        <ul class="list-unstyled">
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Up to 25 projects</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>15 team members</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Advanced KPIs & automation</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>API access</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Priority support</li>
+                        </ul>
+                        <a href="{% url 'account_signup' %}" class="btn btn-primary">Get Started</a>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card h-100 text-center p-4">
+                        <h5 class="fw-bold">Enterprise</h5>
+                        <div class="display-6 fw-bold text-primary mb-3">$799<small class="fs-6 text-muted">/month</small></div>
+                        <ul class="list-unstyled">
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Unlimited projects</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>100+ team members</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Custom branding</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>White-label options</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>Dedicated support</li>
+                        </ul>
+                        <a href="{% url 'account_signup' %}" class="btn btn-outline-primary">Contact Sales</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- CTA Section -->
+    <section class="section-padding" style="background: var(--gradient-primary);">
+        <div class="container text-center text-white">
+            <h2 class="display-5 fw-bold mb-4">Ready to Transform Your Operations?</h2>
+            <p class="lead mb-4">Join thousands of organizations already using COO Platform</p>
+            <a href="{% url 'account_signup' %}" class="btn btn-primary btn-lg me-3">Start Free Trial</a>
+            <a href="#" class="btn btn-outline-primary btn-lg">Schedule Demo</a>
+        </div>
+    </section>
+    
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-4">
+                    <h5 class="fw-bold mb-3">COO Platform</h5>
+                    <p class="text-muted">
+                        Your comprehensive operating platform for business excellence.
+                    </p>
+                </div>
+                <div class="col-lg-2">
+                    <h6 class="fw-bold mb-3">Product</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-muted text-decoration-none">Features</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none">Pricing</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none">API</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2">
+                    <h6 class="fw-bold mb-3">Company</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-muted text-decoration-none">About</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none">Blog</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none">Careers</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2">
+                    <h6 class="fw-bold mb-3">Support</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-muted text-decoration-none">Help Center</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none">Contact</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none">Status</a></li>
+                    </ul>
+                </div>
+                <div class="col-lg-2">
+                    <h6 class="fw-bold mb-3">Legal</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-muted text-decoration-none">Privacy</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none">Terms</a></li>
+                        <li><a href="#" class="text-muted text-decoration-none">Security</a></li>
+                    </ul>
+                </div>
+            </div>
+            <hr class="my-4">
+            <div class="text-center text-muted">
+                <p>&copy; 2025 COO Platform. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+{% load coo_extras %}
+
+{% block title %}KPIs - COO Platform{% endblock %}
+
+{% block breadcrumbs %}
+{{ block.super }}
+<li class="breadcrumb-item active">KPIs</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">Key Performance Indicators</h1>
+        <p class="text-muted mb-0">Track and monitor your organization's performance metrics</p>
+    </div>
+    <a href="{% url 'kpis:create' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i>
+        New KPI
+    </a>
+</div>
+
+<!-- Filters -->
+{% include 'components/search_filters.html' with filters=filter_config current_filters=request.GET %}
+
+<!-- KPI Stats Overview -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        {% include 'components/stats_card.html' with title="Total KPIs" value=total_kpis icon="fas fa-chart-bar" color="primary" %}
+    </div>
+    <div class="col-md-3">
+        {% include 'components/stats_card.html' with title="Active" value=active_kpis icon="fas fa-play" color="success" %}
+    </div>
+    <div class="col-md-3">
+        {% include 'components/stats_card.html' with title="Critical Alerts" value=critical_alerts icon="fas fa-exclamation-triangle" color="danger" %}
+    </div>
+    <div class="col-md-3">
+        {% include 'components/stats_card.html' with title="Categories" value=total_categories icon="fas fa-tags" color="info" %}
+    </div>
+</div>
+
+<!-- KPIs Grid -->
+<div class="row">
+    {% for kpi in kpis %}
+    <div class="col-lg-6 col-xl-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="flex-grow-1">
+                        <h6 class="card-title mb-1">
+                            <a href="{% url 'kpis:detail' kpi.pk %}" class="text-decoration-none">
+                                {{ kpi.name }}
+                            </a>
+                        </h6>
+                        {% if kpi.category %}
+                        <span class="badge" style="background-color: {{ kpi.category.color }}">
+                            {{ kpi.category.name }}
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'kpis:detail' kpi.pk %}">
+                                <i class="fas fa-eye me-2"></i>View Details
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'kpis:detail' kpi.pk %}">
+                                <i class="fas fa-edit me-2"></i>Edit KPI
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" onclick="refreshKPI('{{ kpi.id }}')">
+                                <i class="fas fa-sync-alt me-2"></i>Refresh Data
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Current Value -->
+                <div class="row g-3 mb-3">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="h4 mb-0 {% if kpi.performance_status == 'critical' %}text-danger{% elif kpi.performance_status == 'warning' %}text-warning{% else %}text-success{% endif %}">
+                                {{ kpi.current_value|default:"N/A" }}
+                                {% if kpi.unit %}<small class="fs-6 text-muted">{{ kpi.unit }}</small>{% endif %}
+                            </div>
+                            <small class="text-muted">Current</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="h5 mb-0">{{ kpi.target_value|default:"N/A" }}</div>
+                            <small class="text-muted">Target</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Progress to Target -->
+                {% if kpi.target_value and kpi.current_value %}
+                {% with progress=kpi.current_value|divide:kpi.target_value|multiply:100 %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted">Progress to Target</small>
+                        <small class="fw-medium">{{ progress|floatformat:1 }}%</small>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar {% if progress >= 100 %}bg-success{% elif progress >= 75 %}bg-primary{% elif progress >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                             style="width: {{ progress|floatformat:1 }}%"></div>
+                    </div>
+                </div>
+                {% endwith %}
+                {% endif %}
+                
+                <!-- KPI Info -->
+                <div class="row g-2 text-muted small">
+                    <div class="col-6">
+                        <i class="fas fa-user me-1"></i>
+                        {{ kpi.owner.get_full_name|default:kpi.owner.username|default:"No owner" }}
+                    </div>
+                    <div class="col-6">
+                        <i class="fas fa-clock me-1"></i>
+                        {{ kpi.auto_update_frequency|title }}
+                    </div>
+                    <div class="col-6">
+                        <i class="fas fa-chart-line me-1"></i>
+                        {{ kpi.chart_type|title }} Chart
+                    </div>
+                    <div class="col-6">
+                        {% if kpi.is_featured %}
+                        <i class="fas fa-star text-warning me-1"></i>
+                        Featured
+                        {% else %}
+                        <i class="fas fa-circle me-1"></i>
+                        Regular
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-transparent">
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        {% if kpi.last_auto_update %}
+                        Updated {{ kpi.last_auto_update|timesince }} ago
+                        {% else %}
+                        Never updated
+                        {% endif %}
+                    </small>
+                    <div class="d-flex align-items-center">
+                        <span class="status-indicator {% if kpi.is_active %}active{% else %}inactive{% endif %}"></span>
+                        <small class="text-muted ms-1">
+                            {% if kpi.is_active %}Active{% else %}Inactive{% endif %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="card text-center py-5">
+            <div class="card-body">
+                <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                <h5>No KPIs found</h5>
+                <p class="text-muted mb-3">
+                    {% if request.GET.search or request.GET.category %}
+                    Try adjusting your filters or search terms.
+                    {% else %}
+                    Start tracking your organization's performance by creating your first KPI.
+                    {% endif %}
+                </p>
+                {% if not request.GET.search and not request.GET.category %}
+                <a href="{% url 'kpis:create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>
+                    Create First KPI
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+{% include 'components/pagination.html' with page_obj=page_obj %}
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function refreshKPI(kpiId) {
+    fetch(`/api/v1/kpis/${kpiId}/refresh/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Failed to refresh KPI: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error refreshing KPI:', error);
+        alert('Failed to refresh KPI');
+    });
+}
+</script>
+{% endblock %}

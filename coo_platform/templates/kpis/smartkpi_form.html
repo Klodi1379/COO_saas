@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+{% load coo_extras %}
+
+{% block title %}Create KPI - COO Platform{% endblock %}
+
+{% block breadcrumbs %}
+{{ block.super }}
+<li class="breadcrumb-item"><a href="{% url 'kpis:list' %}">KPIs</a></li>
+<li class="breadcrumb-item active">Create KPI</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Create New KPI</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <!-- Basic Information -->
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="name" class="form-label">KPI Name *</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="unit" class="form-label">Unit</label>
+                            <input type="text" class="form-control" id="unit" name="unit" placeholder="$, %, count, etc.">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="category" class="form-label">Category</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="">Select Category</option>
+                                {% for category in categories %}
+                                <option value="{{ category.id }}">{{ category.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="owner" class="form-label">Owner</label>
+                            <select class="form-select" id="owner" name="owner">
+                                <option value="">Select Owner</option>
+                                {% for user in team_members %}
+                                <option value="{{ user.id }}" {% if user == request.user %}selected{% endif %}>
+                                    {{ user.get_full_name|default:user.username }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Targets and Thresholds -->
+                    <h6 class="mt-4 mb-3">Targets & Thresholds</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="target_value" class="form-label">Target Value</label>
+                            <input type="number" step="0.01" class="form-control" id="target_value" name="target_value">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="trend_direction" class="form-label">Trend Direction</label>
+                            <select class="form-select" id="trend_direction" name="trend_direction">
+                                <option value="up_good">Higher is Better</option>
+                                <option value="down_good">Lower is Better</option>
+                                <option value="stable_good">Stable is Better</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="warning_threshold" class="form-label">Warning Threshold</label>
+                            <input type="number" step="0.01" class="form-control" id="warning_threshold" name="warning_threshold">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="critical_threshold" class="form-label">Critical Threshold</label>
+                            <input type="number" step="0.01" class="form-control" id="critical_threshold" name="critical_threshold">
+                        </div>
+                    </div>
+                    
+                    <!-- Data Source Configuration -->
+                    <h6 class="mt-4 mb-3">Data Source</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="data_source_type" class="form-label">Data Source Type</label>
+                            <select class="form-select" id="data_source_type" name="data_source_type">
+                                <option value="manual">Manual Entry</option>
+                                <option value="api">API Integration</option>
+                                <option value="csv_upload">CSV Upload</option>
+                                <option value="database">Database Query</option>
+                                <option value="calculated">Calculated from Other KPIs</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="auto_update_frequency" class="form-label">Update Frequency</label>
+                            <select class="form-select" id="auto_update_frequency" name="auto_update_frequency">
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly" selected>Monthly</option>
+                                <option value="quarterly">Quarterly</option>
+                                <option value="yearly">Yearly</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Display Settings -->
+                    <h6 class="mt-4 mb-3">Display Settings</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="chart_type" class="form-label">Chart Type</label>
+                            <select class="form-select" id="chart_type" name="chart_type">
+                                <option value="line" selected>Line Chart</option>
+                                <option value="bar">Bar Chart</option>
+                                <option value="area">Area Chart</option>
+                                <option value="gauge">Gauge</option>
+                                <option value="number">Number Display</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="decimal_places" class="form-label">Decimal Places</label>
+                            <select class="form-select" id="decimal_places" name="decimal_places">
+                                <option value="0">0</option>
+                                <option value="1">1</option>
+                                <option value="2" selected>2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Options -->
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_featured" name="is_featured">
+                                <label class="form-check-label" for="is_featured">
+                                    Featured KPI (show on main dashboard)
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
+                                <label class="form-check-label" for="is_active">
+                                    Active KPI
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Buttons -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'kpis:list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Back to KPIs
+                        </a>
+                        <div>
+                            <button type="button" class="btn btn-outline-primary me-2" onclick="saveAsDraft()">
+                                Save as Draft
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>
+                                Create KPI
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- KPI Creation Guide -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">KPI Creation Guide</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="small">1. Define Your Metric</h6>
+                    <p class="small text-muted">Choose a specific, measurable metric that aligns with your business goals.</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="small">2. Set Clear Targets</h6>
+                    <p class="small text-muted">Define target values and thresholds to track performance against goals.</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="small">3. Choose Data Source</h6>
+                    <p class="small text-muted">Select how data will be collected - manually, via API, or calculated.</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="small">4. Configure Display</h6>
+                    <p class="small text-muted">Choose the best chart type and formatting for your data.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- KPI Examples -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Common KPI Examples</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <strong class="small">Financial:</strong>
+                    <div class="small text-muted">Monthly Revenue, Cost per Acquisition, Profit Margin</div>
+                </div>
+                
+                <div class="mb-2">
+                    <strong class="small">Customer:</strong>
+                    <div class="small text-muted">Customer Satisfaction, Churn Rate, NPS Score</div>
+                </div>
+                
+                <div class="mb-2">
+                    <strong class="small">Operational:</strong>
+                    <div class="small text-muted">Response Time, Error Rate, Efficiency Ratio</div>
+                </div>
+                
+                <div class="mb-2">
+                    <strong class="small">Growth:</strong>
+                    <div class="small text-muted">User Growth, Market Share, Conversion Rate</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function saveAsDraft() {
+    // Add a hidden field to indicate draft mode
+    const form = document.querySelector('form');
+    const draftInput = document.createElement('input');
+    draftInput.type = 'hidden';
+    draftInput.name = 'save_as_draft';
+    draftInput.value = 'true';
+    form.appendChild(draftInput);
+    
+    // Temporarily make is_active false for drafts
+    const isActiveInput = document.getElementById('is_active');
+    const originalValue = isActiveInput.checked;
+    isActiveInput.checked = false;
+    
+    // Submit form
+    form.submit();
+}
+
+// Form validation and UX improvements
+document.addEventListener('DOMContentLoaded', function() {
+    const trendDirection = document.getElementById('trend_direction');
+    const warningThreshold = document.getElementById('warning_threshold');
+    const criticalThreshold = document.getElementById('critical_threshold');
+    const targetValue = document.getElementById('target_value');
+    
+    // Update threshold placeholders based on trend direction
+    trendDirection.addEventListener('change', function() {
+        const direction = this.value;
+        
+        if (direction === 'up_good') {
+            warningThreshold.placeholder = 'Value below which warning triggers';
+            criticalThreshold.placeholder = 'Value below which critical alert triggers';
+        } else if (direction === 'down_good') {
+            warningThreshold.placeholder = 'Value above which warning triggers';
+            criticalThreshold.placeholder = 'Value above which critical alert triggers';
+        } else {
+            warningThreshold.placeholder = 'Deviation from target for warning';
+            criticalThreshold.placeholder = 'Deviation from target for critical alert';
+        }
+    });
+    
+    // Trigger initial update
+    trendDirection.dispatchEvent(new Event('change'));
+});
+</script>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% comment %}
+Reusable stats card component
+Usage: {% include 'components/stats_card.html' with title="Total Projects" value=stats.total_projects icon="fas fa-project-diagram" color="primary" %}
+{% endcomment %}
+
+<div class="card stats-card {% if color %}{{ color }}{% endif %} h-100">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h6 class="card-subtitle mb-2">{{ title }}</h6>
+                <h2 class="card-title mb-0">{{ value|default:"0" }}</h2>
+                {% if subtitle %}
+                <small class="opacity-75">{{ subtitle }}</small>
+                {% endif %}
+            </div>
+            {% if icon %}
+            <i class="{{ icon }} fa-2x opacity-75"></i>
+            {% endif %}
+        </div>
+        
+        {% if change_value %}
+        <div class="mt-2">
+            <small class="{% if change_positive %}text-success{% else %}text-danger{% endif %}">
+                <i class="fas fa-{% if change_positive %}arrow-up{% else %}arrow-down{% endif %} me-1"></i>
+                {{ change_value }}{{ change_unit|default:"%" }}
+                {% if change_period %}from {{ change_period }}{% endif %}
+            </small>
+        </div>
+        {% endif %}
+    </div>
+</div>

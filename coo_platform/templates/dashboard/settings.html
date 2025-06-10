@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% load coo_extras %}
+
+{% block title %}Dashboard Settings - COO Platform{% endblock %}
+
+{% block breadcrumbs %}
+{{ block.super }}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Settings</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Dashboard Configuration</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <label for="dashboard_name" class="form-label">Dashboard Name</label>
+                        <input type="text" class="form-control" id="dashboard_name" name="dashboard_name" 
+                               value="My Dashboard" required>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="auto_refresh" class="form-label">Auto Refresh</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="auto_refresh" 
+                                       name="auto_refresh" checked>
+                                <label class="form-check-label" for="auto_refresh">
+                                    Enable automatic refresh
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="refresh_interval" class="form-label">Refresh Interval (seconds)</label>
+                            <select class="form-select" id="refresh_interval" name="refresh_interval">
+                                <option value="60">1 minute</option>
+                                <option value="300" selected>5 minutes</option>
+                                <option value="600">10 minutes</option>
+                                <option value="1800">30 minutes</option>
+                                <option value="3600">1 hour</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>
+                            Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Widget Library -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Available Widgets</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    {% for widget in available_widgets %}
+                    <div class="col-md-6">
+                        <div class="card border">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="card-title mb-1">{{ widget.title }}</h6>
+                                        <p class="card-text text-muted small">{{ widget.description|default:"No description" }}</p>
+                                        <span class="badge bg-secondary">{{ widget.get_widget_type_display }}</span>
+                                    </div>
+                                    <button class="btn btn-sm btn-primary" 
+                                            onclick="addWidget('{{ widget.id }}')">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Current Widgets -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Current Widgets</h6>
+            </div>
+            <div class="card-body">
+                {% if user_dashboards %}
+                {% for dashboard in user_dashboards %}
+                <div class="mb-3">
+                    <h6>{{ dashboard.name }}</h6>
+                    {% for placement in dashboard.widget_placements.all %}
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <div>
+                            <span class="fw-medium">{{ placement.widget.title }}</span>
+                            <br>
+                            <small class="text-muted">{{ placement.widget.get_widget_type_display }}</small>
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" 
+                                onclick="removeWidget('{{ placement.id }}')">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted">No widgets configured</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Themes -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Dashboard Themes</h6>
+            </div>
+            <div class="card-body">
+                {% for theme in available_themes %}
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="theme" 
+                           id="theme_{{ theme.id }}" value="{{ theme.id }}">
+                    <label class="form-check-label" for="theme_{{ theme.id }}">
+                        <span class="fw-medium">{{ theme.name }}</span>
+                        <br>
+                        <small class="text-muted">{{ theme.description }}</small>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'dashboard:export' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-download me-1"></i>
+                        Export Dashboard
+                    </a>
+                    <button class="btn btn-outline-secondary" onclick="resetDashboard()">
+                        <i class="fas fa-undo me-1"></i>
+                        Reset to Default
+                    </button>
+                    <button class="btn btn-outline-info" onclick="saveDashboardLayout()">
+                        <i class="fas fa-save me-1"></i>
+                        Save Layout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function addWidget(widgetId) {
+    try {
+        const response = await fetch('/dashboard/widgets/add/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `widget_id=${widgetId}&dashboard_id=default`
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Failed to add widget: ' + (data.error || 'Unknown error'));
+        }
+    } catch (error) {
+        console.error('Error adding widget:', error);
+        alert('Failed to add widget');
+    }
+}
+
+async function removeWidget(placementId) {
+    if (confirm('Are you sure you want to remove this widget?')) {
+        try {
+            const response = await fetch(`/dashboard/widgets/remove/${placementId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                    'Content-Type': 'application/json',
+                },
+            });
+            
+            const data = await response.json();
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to remove widget');
+            }
+        } catch (error) {
+            console.error('Error removing widget:', error);
+            alert('Failed to remove widget');
+        }
+    }
+}
+
+function resetDashboard() {
+    if (confirm('Are you sure you want to reset your dashboard to default? This will remove all current widgets.')) {
+        // TODO: Implement dashboard reset
+        alert('Reset functionality coming soon');
+    }
+}
+
+function saveDashboardLayout() {
+    // TODO: Implement layout saving
+    alert('Layout saved successfully!');
+}
+</script>
+{% endblock %}

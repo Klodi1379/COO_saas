@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+{% load coo_extras %}
+
+{% block title %}Create Automation Rule - COO Platform{% endblock %}
+
+{% block breadcrumbs %}
+{{ block.super }}
+<li class="breadcrumb-item"><a href="{% url 'automation:list' %}">Automation</a></li>
+<li class="breadcrumb-item active">Create Rule</li>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Create New Automation Rule</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <!-- Basic Information -->
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Rule Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <!-- Trigger Configuration -->
+                    <h6 class="mt-4 mb-3">Trigger Configuration</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="trigger_type" class="form-label">Trigger Type *</label>
+                            <select class="form-select" id="trigger_type" name="trigger_type" required>
+                                <option value="">Select Trigger Type</option>
+                                <option value="kpi_threshold">KPI Threshold</option>
+                                <option value="task_status">Task Status Change</option>
+                                <option value="project_milestone">Project Milestone</option>
+                                <option value="time_based">Time-based Schedule</option>
+                                <option value="data_anomaly">Data Anomaly Detection</option>
+                                <option value="user_action">User Action</option>
+                                <option value="external_event">External Event</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="priority" class="form-label">Priority</label>
+                            <select class="form-select" id="priority" name="priority">
+                                <option value="1">1 - Highest</option>
+                                <option value="2">2 - High</option>
+                                <option value="3">3 - Medium High</option>
+                                <option value="4">4 - Medium</option>
+                                <option value="5" selected>5 - Normal</option>
+                                <option value="6">6 - Medium Low</option>
+                                <option value="7">7 - Low</option>
+                                <option value="8">8 - Lowest</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="trigger_config" class="form-label">Trigger Configuration (JSON)</label>
+                        <textarea class="form-control" id="trigger_config" name="trigger_config" rows="4" placeholder='{"condition": "value > 100", "field": "sales_total"}'></textarea>
+                        <div class="form-text">
+                            Enter JSON configuration for the trigger conditions. The exact format depends on the trigger type selected above.
+                        </div>
+                    </div>
+                    
+                    <!-- Execution Settings -->
+                    <h6 class="mt-4 mb-3">Execution Settings</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="run_once" name="run_once">
+                                <label class="form-check-label" for="run_once">
+                                    Run Only Once
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="max_executions" class="form-label">Max Executions</label>
+                            <input type="number" class="form-control" id="max_executions" name="max_executions" min="1" placeholder="Leave empty for unlimited">
+                        </div>
+                    </div>
+                    
+                    <!-- Scheduling -->
+                    <h6 class="mt-4 mb-3">Scheduling</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="start_date" class="form-label">Start Date</label>
+                            <input type="datetime-local" class="form-control" id="start_date" name="start_date">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="end_date" class="form-label">End Date</label>
+                            <input type="datetime-local" class="form-control" id="end_date" name="end_date">
+                        </div>
+                    </div>
+                    
+                    <!-- Buttons -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <a href="{% url 'automation:list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>
+                            Back to Rules
+                        </a>
+                        <div>
+                            <button type="button" class="btn btn-outline-primary me-2" onclick="saveAsDraft()">
+                                Save as Draft
+                            </button>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>
+                                Create Rule
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Rule Creation Guide -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Automation Guide</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="small">1. Define Your Trigger</h6>
+                    <p class="small text-muted">Choose what event or condition will activate this rule.</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="small">2. Configure Conditions</h6>
+                    <p class="small text-muted">Set specific conditions in JSON format for when the rule should execute.</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="small">3. Set Execution Limits</h6>
+                    <p class="small text-muted">Define how often and when the rule should run.</p>
+                </div>
+                
+                <div class="mb-3">
+                    <h6 class="small">4. Add Actions</h6>
+                    <p class="small text-muted">After creating the rule, you can add specific actions to execute.</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Trigger Types -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Trigger Types</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <strong class="small">KPI Threshold:</strong>
+                    <div class="small text-muted">Trigger when a KPI crosses a defined threshold</div>
+                </div>
+                
+                <div class="mb-2">
+                    <strong class="small">Task Status:</strong>
+                    <div class="small text-muted">Trigger when task status changes (completed, overdue, etc.)</div>
+                </div>
+                
+                <div class="mb-2">
+                    <strong class="small">Project Milestone:</strong>
+                    <div class="small text-muted">Trigger when project reaches specific milestones</div>
+                </div>
+                
+                <div class="mb-2">
+                    <strong class="small">Time-based:</strong>
+                    <div class="small text-muted">Trigger on schedule (daily, weekly, monthly)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function saveAsDraft() {
+    // Add a hidden field to indicate draft mode
+    const form = document.querySelector('form');
+    const draftInput = document.createElement('input');
+    draftInput.type = 'hidden';
+    draftInput.name = 'save_as_draft';
+    draftInput.value = 'true';
+    form.appendChild(draftInput);
+    
+    // Submit form
+    form.submit();
+}
+
+// Form validation and UX improvements
+document.addEventListener('DOMContentLoaded', function() {
+    const triggerType = document.getElementById('trigger_type');
+    const triggerConfig = document.getElementById('trigger_config');
+    
+    // Update trigger configuration placeholder based on trigger type
+    triggerType.addEventListener('change', function() {
+        const type = this.value;
+        let placeholder = '';
+        
+        switch(type) {
+            case 'kpi_threshold':
+                placeholder = '{"kpi_id": "uuid", "operator": ">", "value": 100, "unit": "percent"}';
+                break;
+            case 'task_status':
+                placeholder = '{"status": "completed", "project_id": "uuid"}';
+                break;
+            case 'project_milestone':
+                placeholder = '{"milestone": "phase_1_complete", "project_id": "uuid"}';
+                break;
+            case 'time_based':
+                placeholder = '{"schedule": "0 9 * * 1", "timezone": "UTC"}';
+                break;
+            case 'data_anomaly':
+                placeholder = '{"field": "revenue", "threshold": 0.2, "period": "daily"}';
+                break;
+            case 'user_action':
+                placeholder = '{"action": "login", "user_role": "admin"}';
+                break;
+            case 'external_event':
+                placeholder = '{"webhook_url": "/api/webhooks/custom", "event_type": "payment"}';
+                break;
+            default:
+                placeholder = '{"condition": "value > 100", "field": "field_name"}';
+        }
+        
+        triggerConfig.placeholder = placeholder;
+    });
+    
+    // Validate dates
+    const startDate = document.getElementById('start_date');
+    const endDate = document.getElementById('end_date');
+    
+    function validateDates() {
+        if (startDate.value && endDate.value) {
+            if (new Date(startDate.value) >= new Date(endDate.value)) {
+                endDate.setCustomValidity('End date must be after start date');
+            } else {
+                endDate.setCustomValidity('');
+            }
+        }
+    }
+    
+    startDate.addEventListener('change', validateDates);
+    endDate.addEventListener('change', validateDates);
+    
+    // JSON validation for trigger config
+    triggerConfig.addEventListener('blur', function() {
+        const value = this.value.trim();
+        if (value) {
+            try {
+                JSON.parse(value);
+                this.classList.remove('is-invalid');
+            } catch (e) {
+                this.classList.add('is-invalid');
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

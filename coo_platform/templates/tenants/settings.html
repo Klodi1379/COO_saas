@@ -1,0 +1,285 @@
+{% extends 'base.html' %}
+{% load coo_extras %}
+
+{% block title %}Organization Settings - COO Platform{% endblock %}
+
+{% block breadcrumbs %}
+{{ block.super }}
+<li class="breadcrumb-item active">Organization Settings</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Organization Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="org_name" class="form-label">Organization Name</label>
+                            <input type="text" class="form-control" id="org_name" name="org_name" 
+                                   value="{{ tenant.name|default:'My Organization' }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="org_slug" class="form-label">Organization Slug</label>
+                            <input type="text" class="form-control" id="org_slug" name="org_slug" 
+                                   value="{{ tenant.slug|default:'my-organization' }}" required>
+                            <div class="form-text">Used in URLs and API calls</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="subscription_tier" class="form-label">Subscription Tier</label>
+                            <select class="form-select" id="subscription_tier" name="subscription_tier">
+                                <option value="basic" {% if tenant.subscription_tier == 'basic' %}selected{% endif %}>Basic</option>
+                                <option value="professional" {% if tenant.subscription_tier == 'professional' %}selected{% endif %}>Professional</option>
+                                <option value="enterprise" {% if tenant.subscription_tier == 'enterprise' %}selected{% endif %}>Enterprise</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="timezone" class="form-label">Default Timezone</label>
+                            <select class="form-select" id="timezone" name="timezone">
+                                <option value="UTC">UTC</option>
+                                <option value="America/New_York">Eastern Time</option>
+                                <option value="America/Chicago">Central Time</option>
+                                <option value="America/Denver">Mountain Time</option>
+                                <option value="America/Los_Angeles">Pacific Time</option>
+                                <option value="Europe/London">London</option>
+                                <option value="Europe/Paris">Paris</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3">{{ tenant.description|default:'' }}</textarea>
+                    </div>
+                    
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Team Members -->
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Team Members</h5>
+                <a href="{% url 'tenants:invite_user' %}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-user-plus me-1"></i>
+                    Invite Member
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Joined</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in team_members %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        {% if user.profile.avatar %}
+                                        <img src="{{ user.profile.avatar.url }}" class="rounded-circle me-2" width="32" height="32">
+                                        {% else %}
+                                        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                                            <i class="fas fa-user text-muted"></i>
+                                        </div>
+                                        {% endif %}
+                                        {{ user.get_full_name|default:user.username }}
+                                    </div>
+                                </td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    <span class="badge bg-{{ user.profile.role|default:'secondary' }}">
+                                        {{ user.profile.get_role_display|default:'User' }}
+                                    </span>
+                                </td>
+                                <td>{{ user.date_joined|date:"M d, Y" }}</td>
+                                <td>
+                                    {% if user != request.user %}
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="editUser('{{ user.id }}')">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="removeUser('{{ user.id }}')">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted small">You</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">No team members found</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Organization Summary -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Organization Summary</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <div class="h4 mb-0">{{ team_members|length }}</div>
+                        <small class="text-muted">Team Members</small>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <div class="h4 mb-0">{{ projects_count|default:0 }}</div>
+                        <small class="text-muted">Projects</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="h4 mb-0">{{ kpis_count|default:0 }}</div>
+                        <small class="text-muted">KPIs</small>
+                    </div>
+                    <div class="col-6">
+                        <div class="h4 mb-0">{{ tenant.subscription_tier|title }}</div>
+                        <small class="text-muted">Plan</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Subscription Details -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Subscription Details</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label small">Current Plan</label>
+                    <div class="fw-medium">{{ tenant.subscription_tier|title }} Plan</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label small">Status</label>
+                    <div>
+                        <span class="badge bg-{% if tenant.is_active %}success{% else %}danger{% endif %}">
+                            {% if tenant.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label small">Features</label>
+                    <ul class="list-unstyled small">
+                        <li><i class="fas fa-check text-success me-1"></i>Project Management</li>
+                        <li><i class="fas fa-check text-success me-1"></i>KPI Tracking</li>
+                        <li><i class="fas fa-check text-success me-1"></i>Team Collaboration</li>
+                        {% if tenant.subscription_tier == 'professional' or tenant.subscription_tier == 'enterprise' %}
+                        <li><i class="fas fa-check text-success me-1"></i>Advanced Analytics</li>
+                        <li><i class="fas fa-check text-success me-1"></i>Automation</li>
+                        {% endif %}
+                        {% if tenant.subscription_tier == 'enterprise' %}
+                        <li><i class="fas fa-check text-success me-1"></i>Custom Branding</li>
+                        <li><i class="fas fa-check text-success me-1"></i>API Access</li>
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                <div class="d-grid">
+                    <button class="btn btn-outline-primary">
+                        <i class="fas fa-credit-card me-1"></i>
+                        Manage Billing
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'tenants:invite_user' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-user-plus me-1"></i>
+                        Invite Team Member
+                    </a>
+                    <button class="btn btn-outline-secondary" onclick="exportData()">
+                        <i class="fas fa-download me-1"></i>
+                        Export Data
+                    </button>
+                    <button class="btn btn-outline-info" onclick="backupSettings()">
+                        <i class="fas fa-save me-1"></i>
+                        Backup Settings
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function editUser(userId) {
+    // TODO: Implement user editing modal
+    alert('Edit user functionality coming soon');
+}
+
+function removeUser(userId) {
+    if (confirm('Are you sure you want to remove this team member?')) {
+        fetch(`/tenants/remove-user/${userId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to remove user: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error removing user:', error);
+            alert('Failed to remove user');
+        });
+    }
+}
+
+function exportData() {
+    // TODO: Implement data export
+    alert('Export functionality coming soon');
+}
+
+function backupSettings() {
+    // TODO: Implement settings backup
+    alert('Backup functionality coming soon');
+}
+</script>
+{% endblock %}

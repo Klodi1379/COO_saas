@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load coo_extras %}
+
+{% block title %}Notifications - COO Platform{% endblock %}
+
+{% block breadcrumbs %}
+{{ block.super }}
+<li class="breadcrumb-item active">Notifications</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">Notifications</h1>
+        <p class="text-muted mb-0">{{ unread_count }} unread notifications</p>
+    </div>
+    
+    {% if unread_count > 0 %}
+    <form method="post" style="display: inline;">
+        {% csrf_token %}
+        <input type="hidden" name="mark_read" value="1">
+        {% for notification in notifications %}
+        {% if not notification.is_read %}
+        <input type="hidden" name="notification_ids" value="{{ notification.id }}">
+        {% endif %}
+        {% endfor %}
+        <button type="submit" class="btn btn-outline-primary">
+            <i class="fas fa-check-double me-1"></i>
+            Mark All Read
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+<!-- Notifications List -->
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-body p-0">
+                {% if notifications %}
+                <div class="list-group list-group-flush">
+                    {% for notification in notifications %}
+                    <div class="list-group-item {% if not notification.is_read %}bg-light{% endif %}">
+                        <div class="d-flex w-100 justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-{{ notification.notification_type|default:'bell' }} me-2 text-{% if notification.notification_type == 'error' %}danger{% elif notification.notification_type == 'warning' %}warning{% elif notification.notification_type == 'success' %}success{% else %}primary{% endif %}"></i>
+                                    <h6 class="mb-0 {% if not notification.is_read %}fw-bold{% endif %}">{{ notification.title }}</h6>
+                                    {% if not notification.is_read %}
+                                    <span class="badge bg-primary ms-2">New</span>
+                                    {% endif %}
+                                </div>
+                                <p class="mb-1 text-muted">{{ notification.message }}</p>
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>
+                                    {{ notification.created_at|timesince }} ago
+                                </small>
+                            </div>
+                            <div class="ms-3">
+                                {% if notification.action_url %}
+                                <a href="{{ notification.action_url }}" class="btn btn-sm btn-outline-primary">
+                                    {{ notification.action_label|default:"View" }}
+                                </a>
+                                {% endif %}
+                                {% if not notification.is_read %}
+                                <button class="btn btn-sm btn-outline-secondary ms-1" 
+                                        onclick="markAsRead('{{ notification.id }}')">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-bell fa-3x text-muted mb-3"></i>
+                    <h5>No notifications</h5>
+                    <p class="text-muted">You're all caught up! New notifications will appear here.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Notification Settings</h6>
+            </div>
+            <div class="card-body">
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" value="" id="emailNotifications" checked>
+                    <label class="form-check-label" for="emailNotifications">
+                        Email notifications
+                    </label>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" value="" id="taskNotifications" checked>
+                    <label class="form-check-label" for="taskNotifications">
+                        Task updates
+                    </label>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" value="" id="kpiAlerts" checked>
+                    <label class="form-check-label" for="kpiAlerts">
+                        KPI alerts
+                    </label>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" value="" id="projectUpdates" checked>
+                    <label class="form-check-label" for="projectUpdates">
+                        Project updates
+                    </label>
+                </div>
+                <button class="btn btn-primary btn-sm w-100">Save Preferences</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function markAsRead(notificationId) {
+    try {
+        const response = await fetch(`/core/notifications/${notificationId}/read/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                'Content-Type': 'application/json',
+            },
+        });
+        
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Failed to mark notification as read');
+        }
+    } catch (error) {
+        console.error('Error marking notification as read:', error);
+        alert('Failed to mark notification as read');
+    }
+}
+</script>
+{% endblock %}

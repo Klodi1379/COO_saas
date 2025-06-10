@@ -1,0 +1,1 @@
+# KPIs app initialization

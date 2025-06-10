@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% load coo_extras %}
+
+{% block title %}Search Results - COO Platform{% endblock %}
+
+{% block breadcrumbs %}
+{{ block.super }}
+<li class="breadcrumb-item active">Search Results</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">Search Results</h1>
+        {% if query %}
+        <p class="text-muted mb-0">Results for "{{ query }}"</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Search Form -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-8">
+                <input type="search" name="q" class="form-control form-control-lg" 
+                       placeholder="Search projects, tasks, KPIs, and more..." 
+                       value="{{ query }}" autofocus>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary btn-lg w-100">
+                    <i class="fas fa-search me-1"></i>
+                    Search
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if query %}
+<!-- Search Results -->
+<div class="row">
+    <!-- Projects -->
+    {% if results.projects %}
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-project-diagram me-2"></i>
+                    Projects ({{ results.projects|length }})
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for project in results.projects %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <div>
+                                <h6 class="mb-1">
+                                    <a href="{{ project.url }}" class="text-decoration-none">
+                                        {{ project.name }}
+                                    </a>
+                                </h6>
+                                <p class="mb-1 text-muted small">{{ project.description|truncatechars:100 }}</p>
+                                <small>
+                                    <span class="badge bg-{{ project.status_color }}">{{ project.status }}</span>
+                                    {{ project.progress }}% complete
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Tasks -->
+    {% if results.tasks %}
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-tasks me-2"></i>
+                    Tasks ({{ results.tasks|length }})
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for task in results.tasks %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <div>
+                                <h6 class="mb-1">
+                                    <a href="{{ task.url }}" class="text-decoration-none">
+                                        {{ task.title }}
+                                    </a>
+                                </h6>
+                                <p class="mb-1 text-muted small">{{ task.project_name }}</p>
+                                <small>
+                                    <span class="badge bg-{{ task.status_color }}">{{ task.status }}</span>
+                                    <span class="badge bg-{{ task.priority_color }}">{{ task.priority }}</span>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- KPIs -->
+    {% if results.kpis %}
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    KPIs ({{ results.kpis|length }})
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for kpi in results.kpis %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <div>
+                                <h6 class="mb-1">
+                                    <a href="{{ kpi.url }}" class="text-decoration-none">
+                                        {{ kpi.name }}
+                                    </a>
+                                </h6>
+                                <p class="mb-1 text-muted small">{{ kpi.category }}</p>
+                                <small>
+                                    Current: {{ kpi.current_value }} {{ kpi.unit }}
+                                    {% if kpi.target_value %}
+                                    | Target: {{ kpi.target_value }} {{ kpi.unit }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Notifications -->
+    {% if results.notifications %}
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-bell me-2"></i>
+                    Notifications ({{ results.notifications|length }})
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for notification in results.notifications %}
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <div>
+                                <h6 class="mb-1">
+                                    <a href="{{ notification.url }}" class="text-decoration-none">
+                                        {{ notification.title }}
+                                    </a>
+                                </h6>
+                                <p class="mb-1 text-muted small">{{ notification.message|truncatechars:100 }}</p>
+                                <small class="text-muted">{{ notification.created_at|timesince }} ago</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- No Results -->
+{% if not results.projects and not results.tasks and not results.kpis and not results.notifications %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+        <h5>No results found</h5>
+        <p class="text-muted">Try adjusting your search terms or check the spelling.</p>
+        
+        <div class="mt-4">
+            <h6>Search Tips:</h6>
+            <ul class="list-unstyled text-muted">
+                <li><i class="fas fa-lightbulb me-2"></i>Use specific keywords</li>
+                <li><i class="fas fa-lightbulb me-2"></i>Try different terms</li>
+                <li><i class="fas fa-lightbulb me-2"></i>Search requires at least 3 characters</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% else %}
+<!-- Empty Search State -->
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+        <h5>Search the Platform</h5>
+        <p class="text-muted">Find projects, tasks, KPIs, and notifications quickly.</p>
+        
+        <div class="row justify-content-center mt-4">
+            <div class="col-md-6">
+                <div class="text-start">
+                    <h6>You can search for:</h6>
+                    <ul class="list-unstyled text-muted">
+                        <li><i class="fas fa-project-diagram me-2 text-primary"></i>Projects and project updates</li>
+                        <li><i class="fas fa-tasks me-2 text-success"></i>Tasks and assignments</li>
+                        <li><i class="fas fa-chart-bar me-2 text-warning"></i>KPIs and metrics</li>
+                        <li><i class="fas fa-bell me-2 text-info"></i>Notifications and alerts</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Add search suggestions functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.querySelector('input[name="q"]');
+    
+    if (searchInput) {
+        let searchTimeout;
+        
+        searchInput.addEventListener('input', function(e) {
+            clearTimeout(searchTimeout);
+            const query = e.target.value.trim();
+            
+            if (query.length >= 2) {
+                searchTimeout = setTimeout(() => {
+                    // TODO: Implement search suggestions
+                    console.log('Search suggestions for:', query);
+                }, 300);
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

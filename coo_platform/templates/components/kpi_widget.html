@@ -1,0 +1,176 @@
+{% comment %}
+Reusable KPI widget component
+Usage: {% include 'components/kpi_widget.html' with kpi=kpi_object show_chart=True chart_days=30 %}
+{% endcomment %}
+
+<div class="widget" data-kpi-id="{{ kpi.id }}">
+    <div class="widget-header">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h5 class="widget-title mb-1">{{ kpi.name }}</h5>
+                {% if kpi.category %}
+                <small class="text-muted">{{ kpi.category.name }}</small>
+                {% endif %}
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <span class="status-indicator {{ kpi.performance_status|default:'inactive' }}"></span>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{% url 'kpis:detail' kpi.pk %}">
+                            <i class="fas fa-eye me-2"></i>View Details
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'kpis:detail' kpi.pk %}">
+                            <i class="fas fa-edit me-2"></i>Edit KPI
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="refreshKPI('{{ kpi.id }}')">
+                            <i class="fas fa-sync-alt me-2"></i>Refresh Data
+                        </a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="widget-content">
+        <!-- Current Value -->
+        <div class="row g-3 mb-3">
+            <div class="col-6">
+                <div class="text-center">
+                    <div class="kpi-value {% if kpi.performance_status == 'critical' %}text-danger{% elif kpi.performance_status == 'warning' %}text-warning{% else %}text-success{% endif %}">
+                        {{ kpi.current_value|default:"N/A" }}
+                        {% if kpi.unit %}<small class="fs-6 text-muted">{{ kpi.unit }}</small>{% endif %}
+                    </div>
+                    <small class="text-muted">Current Value</small>
+                </div>
+            </div>
+            
+            <div class="col-6">
+                <div class="text-center">
+                    <div class="h5 mb-0">{{ kpi.target_value|default:"N/A" }}</div>
+                    <small class="text-muted">Target</small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Progress Bar -->
+        {% if kpi.target_value and kpi.current_value %}
+        {% with progress_percentage=kpi.current_value|div:kpi.target_value|mul:100 %}
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <small class="text-muted">Progress to Target</small>
+                <small class="fw-medium">{{ progress_percentage|floatformat:1 }}%</small>
+            </div>
+            <div class="progress progress-modern">
+                <div class="progress-bar {% if progress_percentage >= 100 %}bg-success{% elif progress_percentage >= 75 %}bg-primary{% elif progress_percentage >= 50 %}bg-warning{% else %}bg-danger{% endif %}" 
+                     style="width: {{ progress_percentage|floatformat:1 }}%"></div>
+            </div>
+        </div>
+        {% endwith %}
+        {% endif %}
+        
+        <!-- Trend Chart -->
+        {% if show_chart %}
+        <div class="chart-container mb-3">
+            <canvas id="kpi-chart-{{ kpi.id }}" width="400" height="200"></canvas>
+        </div>
+        {% endif %}
+        
+        <!-- Alerts -->
+        {% if kpi.has_active_alerts %}
+        <div class="alert alert-modern alert-warning py-2">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <div>
+                    <strong>{{ kpi.active_alerts.count }} Alert{{ kpi.active_alerts.count|pluralize }}</strong>
+                    <div class="small">Latest: {{ kpi.latest_alert.title }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Last Updated -->
+        <div class="text-center text-muted small">
+            {% if kpi.last_updated %}
+            Last updated: {{ kpi.last_updated|timesince }} ago
+            {% else %}
+            No data available
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if show_chart %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    renderKPIChart('{{ kpi.id }}', {{ chart_days|default:30 }});
+});
+
+function renderKPIChart(kpiId, days) {
+    const ctx = document.getElementById(`kpi-chart-${kpiId}`);
+    if (!ctx) return;
+    
+    // This would fetch data from your API
+    fetch(`/api/v1/kpis/${kpiId}/chart-data/?days=${days}`)
+        .then(response => response.json())
+        .then(data => {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.dates,
+                    datasets: [{
+                        label: '{{ kpi.name }}',
+                        data: data.values,
+                        borderColor: 'rgba(0, 123, 255, 1)',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error loading KPI chart data:', error);
+            ctx.parentElement.innerHTML = '<div class="text-center text-muted py-3">Failed to load chart</div>';
+        });
+}
+
+function refreshKPI(kpiId) {
+    // Refresh KPI data
+    fetch(`/api/v1/kpis/${kpiId}/refresh/`, { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            }
+        })
+        .catch(error => console.error('Error refreshing KPI:', error));
+}
+</script>
+{% endif %}

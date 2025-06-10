@@ -1,0 +1,621 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ project.name }} - COO Platform{% endblock %}
+
+{% block breadcrumbs %}
+{{ block.super }}
+<li class="breadcrumb-item"><a href="{% url 'projects:list' %}">Projects</a></li>
+<li class="breadcrumb-item active">{{ project.name }}</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .progress-circle {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: conic-gradient(from 0deg, #007bff 0deg, #007bff {{ project.progress_percentage|floatformat:0 }}%, #e9ecef {{ project.progress_percentage|floatformat:0 }}%, #e9ecef 360deg);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+    
+    .progress-circle::before {
+        content: '';
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: white;
+        position: absolute;
+    }
+    
+    .progress-text {
+        position: relative;
+        z-index: 1;
+        font-weight: bold;
+        font-size: 1.2rem;
+    }
+    
+    .task-item {
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .task-item:hover {
+        background-color: #f8f9fa;
+        transform: translateX(5px);
+    }
+    
+    .team-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Project Header -->
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <div class="d-flex align-items-center mb-2">
+            <h1 class="h3 mb-0 me-3">{{ project.name }}</h1>
+            <span class="badge bg-{% if project.status == 'active' %}primary{% elif project.status == 'completed' %}success{% elif project.status == 'on_hold' %}warning{% else %}secondary{% endif %} fs-6">
+                {{ project.get_status_display }}
+            </span>
+            {% if project.is_overdue %}
+            <span class="badge bg-danger ms-2">
+                <i class="fas fa-exclamation-triangle me-1"></i>Overdue
+            </span>
+            {% endif %}
+        </div>
+        {% if project.description %}
+        <p class="text-muted mb-0">{{ project.description }}</p>
+        {% endif %}
+    </div>
+    
+    <div class="d-flex gap-2">
+        {% if can_edit %}
+        <a href="{% url 'projects:update' project.pk %}" class="btn btn-outline-primary">
+            <i class="fas fa-edit me-1"></i>Edit
+        </a>
+        {% endif %}
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" onclick="exportProject()">
+                    <i class="fas fa-download me-2"></i>Export Data
+                </a></li>
+                <li><a class="dropdown-item" href="#" onclick="generateReport()">
+                    <i class="fas fa-chart-bar me-2"></i>Generate Report
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item text-danger" href="#" onclick="archiveProject()">
+                    <i class="fas fa-archive me-2"></i>Archive Project
+                </a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Project Overview Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body">
+                <div class="progress-circle mx-auto mb-3">
+                    <div class="progress-text">{{ project.progress_percentage }}%</div>
+                </div>
+                <h6 class="card-title">Progress</h6>
+                <p class="text-muted small mb-0">{{ task_stats.completed }} of {{ task_stats.total }} tasks completed</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-1">Budget</h6>
+                        {% if project.budget_allocated %}
+                        <h4 class="mb-0">${{ project.budget_spent|floatformat:0 }}</h4>
+                        <small class="text-muted">of ${{ project.budget_allocated|floatformat:0 }}</small>
+                        {% else %}
+                        <h4 class="mb-0 text-muted">Not set</h4>
+                        {% endif %}
+                    </div>
+                    <i class="fas fa-dollar-sign fa-2x text-success"></i>
+                </div>
+                {% if project.budget_allocated %}
+                <div class="progress mt-2" style="height: 6px;">
+                    <div class="progress-bar bg-success" style="width: {{ project.budget_utilization }}%"></div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-1">Timeline</h6>
+                        {% if project.days_remaining %}
+                        <h4 class="mb-0 {% if project.is_overdue %}text-danger{% elif project.days_remaining < 7 %}text-warning{% else %}text-primary{% endif %}">
+                            {{ project.days_remaining }} days
+                        </h4>
+                        <small class="text-muted">remaining</small>
+                        {% else %}
+                        <h4 class="mb-0 text-muted">No deadline</h4>
+                        {% endif %}
+                    </div>
+                    <i class="fas fa-calendar fa-2x {% if project.is_overdue %}text-danger{% else %}text-primary{% endif %}"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title text-muted mb-1">Team</h6>
+                        <h4 class="mb-0">{{ team_members.count }}</h4>
+                        <small class="text-muted">members</small>
+                    </div>
+                    <i class="fas fa-users fa-2x text-info"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="row">
+    <!-- Tasks Section -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-tasks me-2"></i>Tasks
+                </h5>
+                {% if user_membership.can_manage_tasks %}
+                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                    <i class="fas fa-plus me-1"></i>Add Task
+                </button>
+                {% endif %}
+            </div>
+            
+            <div class="card-body">
+                <!-- Task Stats -->
+                <div class="row g-3 mb-4">
+                    <div class="col-3">
+                        <div class="text-center">
+                            <div class="h5 mb-1 text-secondary">{{ task_stats.todo }}</div>
+                            <small class="text-muted">To Do</small>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="text-center">
+                            <div class="h5 mb-1 text-primary">{{ task_stats.in_progress }}</div>
+                            <small class="text-muted">In Progress</small>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="text-center">
+                            <div class="h5 mb-1 text-warning">{{ task_stats.blocked }}</div>
+                            <small class="text-muted">Blocked</small>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="text-center">
+                            <div class="h5 mb-1 text-success">{{ task_stats.completed }}</div>
+                            <small class="text-muted">Completed</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Task List -->
+                <div class="task-list">
+                    {% for task in tasks %}
+                    <div class="task-item p-3 border-bottom" onclick="toggleTaskDetails('{{ task.id }}')">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center mb-2">
+                                    <h6 class="mb-0 me-3">{{ task.title }}</h6>
+                                    <span class="badge bg-{% if task.status == 'completed' %}success{% elif task.status == 'in_progress' %}primary{% elif task.status == 'blocked' %}danger{% else %}secondary{% endif %} me-2">
+                                        {{ task.get_status_display }}
+                                    </span>
+                                    <span class="badge bg-{% if task.priority == 'urgent' %}danger{% elif task.priority == 'high' %}warning{% else %}secondary{% endif %}">
+                                        {{ task.get_priority_display }}
+                                    </span>
+                                </div>
+                                
+                                {% if task.description %}
+                                <p class="text-muted small mb-2">{{ task.description|truncatechars:100 }}</p>
+                                {% endif %}
+                                
+                                <div class="d-flex align-items-center text-muted small">
+                                    {% if task.assigned_to %}
+                                    <i class="fas fa-user me-1"></i>
+                                    <span class="me-3">{{ task.assigned_to.get_full_name|default:task.assigned_to.username }}</span>
+                                    {% endif %}
+                                    {% if task.due_date %}
+                                    <i class="fas fa-calendar me-1"></i>
+                                    <span class="me-3 {% if task.is_overdue %}text-danger{% endif %}">
+                                        {{ task.due_date|date:"M d, Y" }}
+                                        {% if task.is_overdue %}<i class="fas fa-exclamation-triangle ms-1"></i>{% endif %}
+                                    </span>
+                                    {% endif %}
+                                    {% if task.estimated_hours %}
+                                    <i class="fas fa-clock me-1"></i>
+                                    <span>{{ task.estimated_hours }}h</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex align-items-center">
+                                {% if user_membership.can_manage_tasks or task.assigned_to == user %}
+                                <div class="btn-group btn-group-sm me-2">
+                                    <button class="btn btn-outline-secondary" onclick="editTask('{{ task.id }}'); event.stopPropagation();">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-outline-primary" onclick="changeTaskStatus('{{ task.id }}', '{{ task.status }}'); event.stopPropagation();">
+                                        <i class="fas fa-sync"></i>
+                                    </button>
+                                </div>
+                                {% endif %}
+                                <i class="fas fa-chevron-down task-chevron"></i>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-tasks fa-3x text-muted mb-3"></i>
+                        <h6>No tasks yet</h6>
+                        <p class="text-muted mb-3">Start by creating the first task for this project.</p>
+                        {% if user_membership.can_manage_tasks %}
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+                            <i class="fas fa-plus me-1"></i>Create Task
+                        </button>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Updates -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-history me-2"></i>Recent Updates
+                </h5>
+            </div>
+            <div class="card-body">
+                {% for update in recent_updates %}
+                <div class="d-flex mb-3 pb-3 border-bottom">
+                    <div class="flex-shrink-0">
+                        <div class="team-avatar">
+                            {{ update.author.first_name.0|default:update.author.username.0 }}{{ update.author.last_name.0|default:"" }}
+                        </div>
+                    </div>
+                    <div class="flex-grow-1 ms-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">{{ update.title }}</h6>
+                                <p class="text-muted mb-1">{{ update.content|truncatechars:150 }}</p>
+                                <small class="text-muted">
+                                    by {{ update.author.get_full_name|default:update.author.username }} • 
+                                    {{ update.created_at|timesince }} ago
+                                </small>
+                            </div>
+                            <span class="badge bg-{% if update.update_type == 'milestone' %}success{% elif update.update_type == 'risk' %}danger{% else %}primary{% endif %}">
+                                {{ update.get_update_type_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="text-center py-3">
+                    <i class="fas fa-history fa-2x text-muted mb-2"></i>
+                    <p class="text-muted mb-0">No updates yet</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Project Details -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Project Details
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    {% if project.category %}
+                    <div class="col-12">
+                        <strong>Category:</strong>
+                        <span class="badge" style="background-color: {{ project.category.color }};">
+                            {{ project.category.name }}
+                        </span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if project.project_manager %}
+                    <div class="col-12">
+                        <strong>Project Manager:</strong><br>
+                        <div class="d-flex align-items-center mt-1">
+                            <div class="team-avatar team-avatar-sm me-2">
+                                {{ project.project_manager.first_name.0|default:project.project_manager.username.0 }}{{ project.project_manager.last_name.0|default:"" }}
+                            </div>
+                            {{ project.project_manager.get_full_name|default:project.project_manager.username }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if project.start_date %}
+                    <div class="col-6">
+                        <strong>Start Date:</strong><br>
+                        <small>{{ project.start_date|date:"M d, Y" }}</small>
+                    </div>
+                    {% endif %}
+                    
+                    {% if project.target_end_date %}
+                    <div class="col-6">
+                        <strong>Target End:</strong><br>
+                        <small class="{% if project.is_overdue %}text-danger{% endif %}">
+                            {{ project.target_end_date|date:"M d, Y" }}
+                        </small>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="col-12">
+                        <strong>Created:</strong><br>
+                        <small>{{ project.created_at|date:"M d, Y" }} ({{ project.created_at|timesince }} ago)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Team Members -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-users me-2"></i>Team Members
+                </h6>
+                {% if user_membership.can_invite_members %}
+                <button class="btn btn-outline-primary btn-sm" onclick="inviteTeamMember()">
+                    <i class="fas fa-plus"></i>
+                </button>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% for member in team_members %}
+                <div class="d-flex align-items-center mb-3">
+                    <div class="team-avatar me-3">
+                        {{ member.user.first_name.0|default:member.user.username.0 }}{{ member.user.last_name.0|default:"" }}
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="fw-medium">{{ member.user.get_full_name|default:member.user.username }}</div>
+                        <small class="text-muted">{{ member.get_role_display }}</small>
+                    </div>
+                    {% if member.is_active %}
+                    <span class="status-indicator active"></span>
+                    {% else %}
+                    <span class="status-indicator inactive"></span>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <div class="text-center py-2">
+                    <i class="fas fa-users fa-2x text-muted mb-2"></i>
+                    <p class="text-muted mb-0 small">No team members assigned</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-bolt me-2"></i>Quick Actions
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary btn-sm" onclick="generateReport()">
+                        <i class="fas fa-chart-bar me-2"></i>Generate Report
+                    </button>
+                    <button class="btn btn-outline-info btn-sm" onclick="exportProject()">
+                        <i class="fas fa-download me-2"></i>Export Data
+                    </button>
+                    <button class="btn btn-outline-success btn-sm" onclick="addMilestone()">
+                        <i class="fas fa-flag me-2"></i>Add Milestone
+                    </button>
+                    <button class="btn btn-outline-warning btn-sm" onclick="logUpdate()">
+                        <i class="fas fa-edit me-2"></i>Log Update
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Task Modal -->
+<div class="modal fade" id="addTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Task</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addTaskForm">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="taskTitle" class="form-label">Task Title *</label>
+                        <input type="text" class="form-control" id="taskTitle" name="title" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="taskDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="taskDescription" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="taskAssignedTo" class="form-label">Assigned To</label>
+                                <select class="form-select" id="taskAssignedTo" name="assigned_to">
+                                    <option value="">Select team member...</option>
+                                    {% for member in team_members %}
+                                    <option value="{{ member.user.id }}">{{ member.user.get_full_name|default:member.user.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="taskPriority" class="form-label">Priority</label>
+                                <select class="form-select" id="taskPriority" name="priority">
+                                    <option value="low">Low</option>
+                                    <option value="medium" selected>Medium</option>
+                                    <option value="high">High</option>
+                                    <option value="urgent">Urgent</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="taskDueDate" class="form-label">Due Date</label>
+                                <input type="date" class="form-control" id="taskDueDate" name="due_date">
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="taskEstimatedHours" class="form-label">Estimated Hours</label>
+                                <input type="number" class="form-control" id="taskEstimatedHours" name="estimated_hours" min="0.5" step="0.5">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Task management functions
+function toggleTaskDetails(taskId) {
+    // TODO: Implement task details toggle
+    console.log('Toggle task details for task:', taskId);
+}
+
+function editTask(taskId) {
+    // TODO: Implement task editing
+    console.log('Edit task:', taskId);
+}
+
+function changeTaskStatus(taskId, currentStatus) {
+    // TODO: Implement status change modal
+    console.log('Change status for task:', taskId, 'current:', currentStatus);
+}
+
+// Team management
+function inviteTeamMember() {
+    // TODO: Implement team member invitation
+    console.log('Invite team member');
+}
+
+// Project actions
+function generateReport() {
+    // TODO: Implement report generation
+    console.log('Generate project report');
+}
+
+function exportProject() {
+    // TODO: Implement project export
+    console.log('Export project data');
+}
+
+function addMilestone() {
+    // TODO: Implement milestone creation
+    console.log('Add milestone');
+}
+
+function logUpdate() {
+    // TODO: Implement update logging
+    console.log('Log project update');
+}
+
+function archiveProject() {
+    if (confirm('Are you sure you want to archive this project? This action cannot be undone.')) {
+        // TODO: Implement project archiving
+        console.log('Archive project');
+    }
+}
+
+// Add task form submission
+document.getElementById('addTaskForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    formData.append('project_id', '{{ project.id }}');
+    
+    fetch('{% url "projects:create_task" project.id %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Error creating task. Please try again.');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error creating task. Please try again.');
+    });
+});
+
+// Real-time updates (WebSocket connection would go here)
+// For now, we'll just refresh data every 30 seconds
+setInterval(function() {
+    // TODO: Implement real-time updates via WebSocket
+}, 30000);
+</script>
+{% endblock %}

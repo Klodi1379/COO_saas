@@ -1,0 +1,742 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load coo_extras %}
+
+{% block title %}Dashboard - COO Platform{% endblock %}
+
+{% block breadcrumbs %}
+{{ block.super }}
+<li class="breadcrumb-item active">Dashboard</li>
+{% endblock %}
+
+{% block extra_css %}
+<!-- Grid Layout CSS -->
+<style>
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stats-overview {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .widget-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .widget-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin: 0;
+    }
+    
+    .widget-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .kpi-value {
+        font-size: 2rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+    
+    .kpi-change {
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .kpi-change.positive {
+        color: #28a745;
+    }
+    
+    .kpi-change.negative {
+        color: #dc3545;
+    }
+    
+    .task-item {
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f1f3f4;
+    }
+    
+    .task-item:last-child {
+        border-bottom: none;
+    }
+    
+    .priority-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+    
+    .loading-spinner {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 200px;
+    }
+    
+    @media (max-width: 768px) {
+        .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+        .stats-overview {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 576px) {
+        .stats-overview {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">Welcome back, {{ user.get_full_name|default:user.username }}!</h1>
+        <p class="text-muted mb-0">Here's what's happening with your operations today.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" id="refreshDashboard">
+            <i class="fas fa-sync-alt me-1"></i>
+            Refresh
+        </button>
+        <a href="{% url 'dashboard:settings' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-cog me-1"></i>
+            Customize
+        </a>
+    </div>
+</div>
+
+<!-- Quick Stats Overview -->
+<div class="stats-overview">
+    {% include 'components/stats_card.html' with title="Total Projects" value=quick_stats.total_projects icon="fas fa-project-diagram" color="primary" subtitle=quick_stats.active_projects|add:" active" %}
+    
+    {% include 'components/stats_card.html' with title="My Tasks" value=quick_stats.my_tasks icon="fas fa-tasks" color="success" subtitle=quick_stats.overdue_tasks|add:" overdue" %}
+    
+    {% include 'components/stats_card.html' with title="KPIs Tracked" value=quick_stats.total_kpis icon="fas fa-chart-bar" color="warning" subtitle=quick_stats.critical_alerts|add:" alerts" %}
+    
+    {% include 'components/stats_card.html' with title="Critical Alerts" value=quick_stats.critical_alerts icon="fas fa-exclamation-triangle" color="danger" subtitle="Require attention" %}
+</div>
+
+<!-- Dashboard Widgets -->
+<div class="dashboard-grid" id="dashboardGrid">
+    {% for placement in widget_placements %}
+    <div class="widget" id="widget-{{ placement.widget.id }}" data-widget-id="{{ placement.widget.id }}">
+        <div class="widget-header">
+            <h5 class="widget-title">
+                {% if placement.title_override %}
+                    {{ placement.title_override }}
+                {% else %}
+                    {{ placement.widget.title }}
+                {% endif %}
+            </h5>
+            <div class="widget-actions">
+                <button class="btn btn-sm btn-outline-secondary" onclick="refreshWidget('{{ placement.widget.id }}')">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="removeWidget('{{ placement.id }}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="widget-content" id="widget-content-{{ placement.widget.id }}">
+            <div class="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="card text-center py-5">
+            <div class="card-body">
+                <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                <h5>No widgets configured</h5>
+                <p class="text-muted mb-3">Start building your dashboard by adding widgets</p>
+                <a href="{% url 'dashboard:settings' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>
+                    Add Widgets
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Recent Activity</h5>
+            </div>
+            <div class="card-body">
+                <div id="recentActivity">
+                    <div class="loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'projects:create' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-plus me-2"></i>
+                        New Project
+                    </a>
+                    <a href="{% url 'kpis:create' %}" class="btn btn-outline-success">
+                        <i class="fas fa-chart-bar me-2"></i>
+                        Add KPI
+                    </a>
+                    <a href="{% url 'automation:create' %}" class="btn btn-outline-info">
+                        <i class="fas fa-robot me-2"></i>
+                        Create Automation
+                    </a>
+                    <a href="{% url 'tenants:invite_user' %}" class="btn btn-outline-warning">
+                        <i class="fas fa-user-plus me-2"></i>
+                        Invite Team Member
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick KPI Overview -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5 class="card-title mb-0">KPI Overview</h5>
+            </div>
+            <div class="card-body">
+                <div id="kpiOverview">
+                    <div class="loading-spinner">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Dashboard functionality
+class Dashboard {
+    constructor() {
+        this.widgets = new Map();
+        this.refreshInterval = null;
+        this.init();
+    }
+    
+    init() {
+        this.loadAllWidgets();
+        this.loadRecentActivity();
+        this.loadKPIOverview();
+        this.setupEventListeners();
+        this.startAutoRefresh();
+    }
+    
+    setupEventListeners() {
+        // Refresh dashboard button
+        document.getElementById('refreshDashboard')?.addEventListener('click', () => {
+            this.refreshAll();
+        });
+        
+        // Auto-refresh every 5 minutes
+        this.refreshInterval = setInterval(() => {
+            this.refreshAll();
+        }, 300000);
+    }
+    
+    startAutoRefresh() {
+        // WebSocket connection for real-time updates would go here
+        // For now, we'll use polling
+    }
+    
+    async loadAllWidgets() {
+        const widgets = document.querySelectorAll('[data-widget-id]');
+        
+        for (const widgetEl of widgets) {
+            const widgetId = widgetEl.dataset.widgetId;
+            await this.loadWidget(widgetId);
+        }
+    }
+    
+    async loadWidget(widgetId) {
+        try {
+            const response = await fetch(`/dashboard/widgets/${widgetId}/data/`);
+            const data = await response.json();
+            
+            if (data.error) {
+                this.showWidgetError(widgetId, data.error);
+                return;
+            }
+            
+            this.renderWidget(widgetId, data);
+        } catch (error) {
+            console.error('Error loading widget:', error);
+            this.showWidgetError(widgetId, 'Failed to load widget data');
+        }
+    }
+    
+    renderWidget(widgetId, data) {
+        const contentEl = document.getElementById(`widget-content-${widgetId}`);
+        if (!contentEl) return;
+        
+        // Render based on widget type
+        switch (data.widget_type) {
+            case 'kpi_summary':
+                this.renderKPISummary(contentEl, data.data);
+                break;
+            case 'kpi_chart':
+                this.renderKPIChart(contentEl, data.data);
+                break;
+            case 'project_overview':
+                this.renderProjectOverview(contentEl, data.data);
+                break;
+            case 'task_list':
+                this.renderTaskList(contentEl, data.data);
+                break;
+            case 'recent_activity':
+                this.renderRecentActivity(contentEl, data.data);
+                break;
+            case 'alerts_summary':
+                this.renderAlertsSummary(contentEl, data.data);
+                break;
+            default:
+                contentEl.innerHTML = '<p class="text-muted">Widget type not implemented</p>';
+        }
+    }
+    
+    renderKPISummary(container, data) {
+        if (!data.kpis || data.kpis.length === 0) {
+            container.innerHTML = '<p class="text-muted">No KPIs configured</p>';
+            return;
+        }
+        
+        let html = '<div class="row g-3">';
+        
+        data.kpis.forEach(kpi => {
+            const statusColor = this.getPerformanceColor(kpi.performance_status);
+            
+            html += `
+                <div class="col-md-6">
+                    <div class="border rounded p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-1">${kpi.name}</h6>
+                                <div class="kpi-value">${kpi.current_value || 'N/A'} ${kpi.unit || ''}</div>
+                                ${kpi.target_value ? `<small class="text-muted">Target: ${kpi.target_value}</small>` : ''}
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-${statusColor}">${kpi.performance_status}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+    }
+    
+    renderProjectOverview(container, data) {
+        let html = `
+            <div class="row g-3 mb-3">
+                <div class="col-6">
+                    <div class="text-center">
+                        <div class="h4 mb-1">${data.total_projects}</div>
+                        <small class="text-muted">Total Projects</small>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="text-center">
+                        <div class="h4 mb-1 text-danger">${data.overdue_count}</div>
+                        <small class="text-muted">Overdue</small>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        if (data.status_breakdown && data.status_breakdown.length > 0) {
+            html += '<div class="mb-3">';
+            data.status_breakdown.forEach(status => {
+                const percentage = data.total_projects > 0 ? (status.count / data.total_projects) * 100 : 0;
+                html += `
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-capitalize">${status.status}</span>
+                        <span>${status.count}</span>
+                    </div>
+                    <div class="progress mb-2" style="height: 6px;">
+                        <div class="progress-bar" style="width: ${percentage}%"></div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+        
+        if (data.recent_projects && data.recent_projects.length > 0) {
+            html += '<div><h6 class="mb-2">Recent Projects</h6>';
+            data.recent_projects.forEach(project => {
+                html += `
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <div>
+                            <div class="fw-medium">${project.name}</div>
+                            <small class="text-muted">${project.status}</small>
+                        </div>
+                        <div class="text-end">
+                            <small>${project.progress}%</small>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+        }
+        
+        container.innerHTML = html;
+    }
+    
+    renderTaskList(container, data) {
+        if (!data.tasks || data.tasks.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center py-3">No tasks assigned</p>';
+            return;
+        }
+        
+        let html = '<div class="list-group list-group-flush">';
+        
+        data.tasks.forEach(task => {
+            const priorityColor = this.getPriorityColor(task.priority);
+            const statusColor = this.getStatusColor(task.status);
+            const dueDate = task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No due date';
+            
+            html += `
+                <div class="list-group-item px-0 py-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <h6 class="mb-0">${task.title}</h6>
+                                <span class="badge bg-${priorityColor} priority-badge">${task.priority}</span>
+                            </div>
+                            <p class="text-muted mb-1 small">${task.project_name}</p>
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>
+                                ${dueDate}
+                            </small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-${statusColor}">${task.status.replace('_', ' ')}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        
+        if (data.total_count > data.tasks.length) {
+            html += `
+                <div class="text-center pt-3">
+                    <a href="/projects/tasks/" class="btn btn-sm btn-outline-primary">
+                        View All Tasks (${data.total_count})
+                    </a>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = html;
+    }
+    
+    renderAlertsSummary(container, data) {
+        if (!data.alerts || data.alerts.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center py-3">No active alerts</p>';
+            return;
+        }
+        
+        let html = '<div class="list-group list-group-flush">';
+        
+        data.alerts.forEach(alert => {
+            const severityColor = this.getSeverityColor(alert.severity);
+            const timeAgo = this.getTimeAgo(alert.created_at);
+            
+            html += `
+                <div class="list-group-item px-0 py-3">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle text-${severityColor}"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <h6 class="mb-0 small">${alert.title}</h6>
+                                <span class="badge bg-${severityColor}">${alert.severity}</span>
+                            </div>
+                            <p class="text-muted mb-1 small">${alert.message}</p>
+                            <small class="text-muted">
+                                <i class="fas fa-clock me-1"></i>
+                                ${timeAgo}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        
+        if (data.total_count > data.alerts.length) {
+            html += `
+                <div class="text-center pt-3">
+                    <a href="/kpis/alerts/" class="btn btn-sm btn-outline-danger">
+                        View All Alerts (${data.total_count})
+                    </a>
+                </div>
+            `;
+        }
+        
+        container.innerHTML = html;
+    }
+    
+    renderKPIChart(container, data) {
+        if (!data.chart_data || data.chart_data.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center py-3">No chart data available</p>';
+            return;
+        }
+        
+        container.innerHTML = '<canvas id="kpiChart" width="400" height="200"></canvas>';
+        
+        // This would integrate with Chart.js or similar library
+        // For now, show a placeholder
+        setTimeout(() => {
+            container.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-chart-line fa-3x mb-2"></i>
+                    <div>Chart visualization would appear here</div>
+                    <small>Chart.js integration needed</small>
+                </div>
+            `;
+        }, 100);
+    }
+    
+    renderRecentActivity(container, data) {
+        if (!data.activities || data.activities.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center py-3">No recent activity</p>';
+            return;
+        }
+        
+        let html = '<div class="list-group list-group-flush">';
+        
+        data.activities.forEach(activity => {
+            const timeAgo = this.getTimeAgo(activity.created_at);
+            const iconClass = this.getActivityIcon(activity.type);
+            
+            html += `
+                <div class="list-group-item px-0 py-3">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="flex-shrink-0">
+                            <i class="${iconClass} text-primary"></i>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <h6 class="mb-0 small">${activity.title}</h6>
+                                <small class="text-muted">${timeAgo}</small>
+                            </div>
+                            <p class="text-muted mb-0 small">${activity.description}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        container.innerHTML = html;
+    }
+    
+    async loadRecentActivity() {
+        const container = document.getElementById('recentActivity');
+        if (!container) return;
+        
+        try {
+            // This would be an API call to get recent activity
+            // For now, we'll show a placeholder
+            container.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-clock fa-2x mb-2"></i>
+                    <div>Recent activity will appear here</div>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error loading recent activity:', error);
+        }
+    }
+    
+    async loadKPIOverview() {
+        const container = document.getElementById('kpiOverview');
+        if (!container) return;
+        
+        try {
+            // This would be an API call to get KPI overview
+            // For now, we'll show a placeholder
+            container.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="fas fa-chart-bar fa-2x mb-2"></i>
+                    <div>KPI overview will appear here</div>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error loading KPI overview:', error);
+        }
+    }
+    
+    showWidgetError(widgetId, message) {
+        const contentEl = document.getElementById(`widget-content-${widgetId}`);
+        if (contentEl) {
+            contentEl.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    ${message}
+                </div>
+            `;
+        }
+    }
+    
+    getPerformanceColor(status) {
+        const colors = {
+            'excellent': 'success',
+            'good': 'primary',
+            'warning': 'warning',
+            'critical': 'danger',
+            'unknown': 'secondary'
+        };
+        return colors[status] || 'secondary';
+    }
+    
+    getPriorityColor(priority) {
+        const colors = {
+            'low': 'success',
+            'medium': 'warning',
+            'high': 'danger',
+            'urgent': 'dark'
+        };
+        return colors[priority] || 'secondary';
+    }
+    
+    getStatusColor(status) {
+        const colors = {
+            'todo': 'secondary',
+            'in_progress': 'primary',
+            'review': 'info',
+            'completed': 'success',
+            'blocked': 'danger'
+        };
+        return colors[status] || 'secondary';
+    }
+    
+    getSeverityColor(severity) {
+        const colors = {
+            'low': 'info',
+            'medium': 'warning',
+            'high': 'danger',
+            'critical': 'danger'
+        };
+        return colors[severity] || 'secondary';
+    }
+    
+    getTimeAgo(dateString) {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffInSeconds = Math.floor((now - date) / 1000);
+        
+        if (diffInSeconds < 60) return 'Just now';
+        if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+        if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+        if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+        
+        return date.toLocaleDateString();
+    }
+    
+    getActivityIcon(type) {
+        const icons = {
+            'project_created': 'fas fa-plus-circle',
+            'project_updated': 'fas fa-edit',
+            'task_completed': 'fas fa-check-circle',
+            'kpi_updated': 'fas fa-chart-line',
+            'alert_created': 'fas fa-exclamation-triangle',
+            'user_joined': 'fas fa-user-plus',
+            'comment_added': 'fas fa-comment'
+        };
+        return icons[type] || 'fas fa-info-circle';
+    }
+    
+    refreshAll() {
+        this.loadAllWidgets();
+        this.loadRecentActivity();
+        this.loadKPIOverview();
+    }
+}
+
+// Global functions for widget actions
+function refreshWidget(widgetId) {
+    window.dashboard.loadWidget(widgetId);
+}
+
+function removeWidget(placementId) {
+    if (confirm('Are you sure you want to remove this widget?')) {
+        fetch(`/dashboard/widgets/remove/${placementId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Failed to remove widget');
+            }
+        })
+        .catch(error => {
+            console.error('Error removing widget:', error);
+            alert('Failed to remove widget');
+        });
+    }
+}
+
+// Initialize dashboard when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    window.dashboard = new Dashboard();
+});
+</script>
+{% endblock %}

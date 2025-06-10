@@ -1,0 +1,374 @@
+{% extends 'base.html' %}
+{% load coo_extras %}
+
+{% block title %}{{ kpi.name }} - KPIs - COO Platform{% endblock %}
+
+{% block breadcrumbs %}
+{{ block.super }}
+<li class="breadcrumb-item"><a href="{% url 'kpis:list' %}">KPIs</a></li>
+<li class="breadcrumb-item active">{{ kpi.name }}</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">{{ kpi.name }}</h1>
+        <p class="text-muted mb-0">{{ kpi.description|default:"No description available" }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary" onclick="refreshKPI()">
+            <i class="fas fa-sync-alt me-1"></i>
+            Refresh Data
+        </button>
+        <a href="{% url 'kpis:detail' kpi.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-edit me-1"></i>
+            Edit KPI
+        </a>
+    </div>
+</div>
+
+<!-- KPI Overview -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        {% include 'components/stats_card.html' with title="Current Value" value=kpi.current_value icon="fas fa-chart-line" color="primary" subtitle=kpi.unit %}
+    </div>
+    <div class="col-md-3">
+        {% include 'components/stats_card.html' with title="Target Value" value=kpi.target_value icon="fas fa-bullseye" color="success" subtitle=kpi.unit %}
+    </div>
+    <div class="col-md-3">
+        {% include 'components/stats_card.html' with title="Performance" value=kpi.performance_status icon="fas fa-tachometer-alt" color=kpi.performance_status|performance_status_color %}
+    </div>
+    <div class="col-md-3">
+        {% include 'components/stats_card.html' with title="Data Points" value=kpi.datapoints.count icon="fas fa-database" color="info" %}
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="row">
+    <div class="col-lg-8">
+        <!-- KPI Chart -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0">Performance Trend</h6>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-secondary active" onclick="changeChartPeriod(7)">7D</button>
+                    <button class="btn btn-outline-secondary" onclick="changeChartPeriod(30)">30D</button>
+                    <button class="btn btn-outline-secondary" onclick="changeChartPeriod(90)">90D</button>
+                    <button class="btn btn-outline-secondary" onclick="changeChartPeriod(365)">1Y</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="kpiChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recent Data Points -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Recent Data Points</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Value</th>
+                                <th>Change</th>
+                                <th>Source</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for datapoint in recent_datapoints %}
+                            <tr>
+                                <td>{{ datapoint.date|date:"M d, Y" }}</td>
+                                <td>
+                                    <strong>{{ datapoint.value }} {{ kpi.unit }}</strong>
+                                </td>
+                                <td>
+                                    {% if datapoint.change_from_previous %}
+                                    <span class="{% if datapoint.change_from_previous > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        <i class="fas fa-arrow-{% if datapoint.change_from_previous > 0 %}up{% else %}down{% endif %} me-1"></i>
+                                        {{ datapoint.change_from_previous|floatformat:2 }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ datapoint.source|default:"Manual" }}</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" onclick="editDatapoint('{{ datapoint.id }}')">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">No data points available</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- KPI Information -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">KPI Details</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Category</label>
+                    {% if kpi.category %}
+                    <div>
+                        <span class="badge" style="background-color: {{ kpi.category.color }}">
+                            {{ kpi.category.name }}
+                        </span>
+                    </div>
+                    {% else %}
+                    <div class="text-muted">No category assigned</div>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Owner</label>
+                    <div>
+                        {% if kpi.owner %}
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-user me-2"></i>
+                            {{ kpi.owner.get_full_name|default:kpi.owner.username }}
+                        </div>
+                        {% else %}
+                        <span class="text-muted">No owner assigned</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Update Frequency</label>
+                    <div>{{ kpi.get_auto_update_frequency_display }}</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Data Source</label>
+                    <div>{{ kpi.get_data_source_type_display }}</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Chart Type</label>
+                    <div>{{ kpi.get_chart_type_display }}</div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label small text-muted">Status</label>
+                    <div>
+                        <span class="badge bg-{% if kpi.is_active %}success{% else %}secondary{% endif %}">
+                            {% if kpi.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                        {% if kpi.is_featured %}
+                        <span class="badge bg-warning ms-1">Featured</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Thresholds -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Thresholds</h6>
+            </div>
+            <div class="card-body">
+                {% if kpi.target_value %}
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-success">Target</span>
+                        <strong>{{ kpi.target_value }} {{ kpi.unit }}</strong>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if kpi.warning_threshold %}
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-warning">Warning</span>
+                        <strong>{{ kpi.warning_threshold }} {{ kpi.unit }}</strong>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if kpi.critical_threshold %}
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-danger">Critical</span>
+                        <strong>{{ kpi.critical_threshold }} {{ kpi.unit }}</strong>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if not kpi.target_value and not kpi.warning_threshold and not kpi.critical_threshold %}
+                <div class="text-muted">No thresholds configured</div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title mb-0">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-outline-primary" onclick="addDataPoint()">
+                        <i class="fas fa-plus me-1"></i>
+                        Add Data Point
+                    </button>
+                    <button class="btn btn-outline-success" onclick="refreshKPI()">
+                        <i class="fas fa-sync-alt me-1"></i>
+                        Refresh Data
+                    </button>
+                    <button class="btn btn-outline-info" onclick="exportData()">
+                        <i class="fas fa-download me-1"></i>
+                        Export Data
+                    </button>
+                    <button class="btn btn-outline-warning" onclick="createAlert()">
+                        <i class="fas fa-bell me-1"></i>
+                        Create Alert
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentChart = null;
+let currentPeriod = 7;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadKPIChart(currentPeriod);
+});
+
+async function loadKPIChart(days = 30) {
+    try {
+        const response = await fetch(`/api/v1/kpis/{{ kpi.id }}/chart-data/?days=${days}`);
+        const data = await response.json();
+        
+        renderChart(data);
+    } catch (error) {
+        console.error('Error loading chart data:', error);
+    }
+}
+
+function renderChart(data) {
+    const ctx = document.getElementById('kpiChart');
+    
+    if (currentChart) {
+        currentChart.destroy();
+    }
+    
+    currentChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.dates || [],
+            datasets: [{
+                label: '{{ kpi.name }}',
+                data: data.values || [],
+                borderColor: 'rgba(0, 123, 255, 1)',
+                backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    }
+                },
+                x: {
+                    grid: {
+                        display: false
+                    }
+                }
+            }
+        }
+    });
+}
+
+function changeChartPeriod(days) {
+    currentPeriod = days;
+    
+    // Update active button
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    loadKPIChart(days);
+}
+
+function refreshKPI() {
+    fetch(`/api/v1/kpis/{{ kpi.id }}/refresh/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Failed to refresh KPI: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error refreshing KPI:', error);
+        alert('Failed to refresh KPI');
+    });
+}
+
+function addDataPoint() {
+    // TODO: Implement add data point modal
+    alert('Add data point functionality coming soon');
+}
+
+function editDatapoint(datapointId) {
+    // TODO: Implement edit data point modal
+    alert('Edit data point functionality coming soon');
+}
+
+function exportData() {
+    // TODO: Implement data export
+    window.open(`/api/v1/kpis/{{ kpi.id }}/export/`, '_blank');
+}
+
+function createAlert() {
+    // TODO: Implement create alert modal
+    alert('Create alert functionality coming soon');
+}
+</script>
+{% endblock %}

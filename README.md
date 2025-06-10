@@ -52,12 +52,12 @@ setup_env.bat
 # Or manually create virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+pip install -r requirements_updated.txt
 ```
 
 ### 2. Environment Configuration
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root (or copy from .env.example):
 
 ```env
 # Django Configuration
@@ -106,6 +106,9 @@ python manage.py setup_demo_data --admin-email=admin@demo.com
 
 ```bash
 # Start the Django development server
+start_server.bat   # Windows script that runs the server
+
+# Or manually:
 python manage.py runserver
 
 # In another terminal, start Celery worker (optional)
@@ -138,7 +141,10 @@ COO_saas/
 │   ├── templates/               # HTML templates
 │   └── static/                  # Static files
 ├── requirements.txt             # Python dependencies
+├── requirements_updated.txt    # Updated dependencies
 ├── setup_env.bat               # Environment setup script
+├── start_server.bat            # Server startup script
+├── reset_demo_data.bat         # Demo data reset script
 └── README.md                   # This file
 ```
 

@@ -1,0 +1,62 @@
+{% comment %}
+Reusable pagination component
+Usage: {% include 'components/pagination.html' with page_obj=page_obj extra_params="status=active&category=1" %}
+{% endcomment %}
+
+{% if page_obj.paginator.num_pages > 1 %}
+<nav aria-label="Page navigation" class="d-flex justify-content-between align-items-center">
+    <div class="pagination-info text-muted">
+        <small>
+            Showing {{ page_obj.start_index }} to {{ page_obj.end_index }} of {{ page_obj.paginator.count }} entries
+        </small>
+    </div>
+    
+    <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page=1{% if extra_params %}&{{ extra_params }}{% endif %}" aria-label="First">
+                <i class="fas fa-angle-double-left"></i>
+            </a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if extra_params %}&{{ extra_params }}{% endif %}" aria-label="Previous">
+                <i class="fas fa-angle-left"></i>
+            </a>
+        </li>
+        {% endif %}
+        
+        {% for page_num in page_obj.paginator.page_range %}
+        {% if page_num == page_obj.number %}
+        <li class="page-item active">
+            <span class="page-link">{{ page_num }}</span>
+        </li>
+        {% elif page_num > page_obj.number|add:'-3' and page_num < page_obj.number|add:'3' %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_num }}{% if extra_params %}&{{ extra_params }}{% endif %}">{{ page_num }}</a>
+        </li>
+        {% elif page_num == 1 or page_num == page_obj.paginator.num_pages %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_num }}{% if extra_params %}&{{ extra_params }}{% endif %}">{{ page_num }}</a>
+        </li>
+        {% elif page_num == page_obj.number|add:'-4' or page_num == page_obj.number|add:'4' %}
+        <li class="page-item disabled">
+            <span class="page-link">...</span>
+        </li>
+        {% endif %}
+        {% endfor %}
+        
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if extra_params %}&{{ extra_params }}{% endif %}" aria-label="Next">
+                <i class="fas fa-angle-right"></i>
+            </a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if extra_params %}&{{ extra_params }}{% endif %}" aria-label="Last">
+                <i class="fas fa-angle-double-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}

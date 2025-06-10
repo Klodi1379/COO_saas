@@ -1,0 +1,277 @@
+{% extends 'base.html' %}
+{% load coo_extras %}
+
+{% block title %}Automation - COO Platform{% endblock %}
+
+{% block breadcrumbs %}
+{{ block.super }}
+<li class="breadcrumb-item active">Automation</li>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h3 mb-1">Automation Rules</h1>
+        <p class="text-muted mb-0">Automate workflows and responses based on triggers and conditions</p>
+    </div>
+    <a href="{% url 'automation:create' %}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i>
+        New Rule
+    </a>
+</div>
+
+<!-- Automation Stats -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        {% include 'components/stats_card.html' with title="Total Rules" value=total_rules icon="fas fa-robot" color="primary" %}
+    </div>
+    <div class="col-md-3">
+        {% include 'components/stats_card.html' with title="Active Rules" value=active_rules icon="fas fa-play" color="success" %}
+    </div>
+    <div class="col-md-3">
+        {% include 'components/stats_card.html' with title="Executions Today" value=executions_today icon="fas fa-bolt" color="warning" %}
+    </div>
+    <div class="col-md-3">
+        {% include 'components/stats_card.html' with title="Success Rate" value=success_rate icon="fas fa-check-circle" color="info" subtitle="%" %}
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <select name="status" class="form-select">
+                    <option value="">All Statuses</option>
+                    <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                    <option value="error" {% if request.GET.status == 'error' %}selected{% endif %}>Error</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <select name="trigger_type" class="form-select">
+                    <option value="">All Trigger Types</option>
+                    <option value="kpi_threshold" {% if request.GET.trigger_type == 'kpi_threshold' %}selected{% endif %}>KPI Threshold</option>
+                    <option value="task_completed" {% if request.GET.trigger_type == 'task_completed' %}selected{% endif %}>Task Completed</option>
+                    <option value="project_status" {% if request.GET.trigger_type == 'project_status' %}selected{% endif %}>Project Status</option>
+                    <option value="schedule" {% if request.GET.trigger_type == 'schedule' %}selected{% endif %}>Schedule</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <input type="search" name="search" class="form-control" placeholder="Search automation rules..." 
+                       value="{{ request.GET.search }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-filter me-1"></i>
+                    Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Automation Rules List -->
+<div class="row">
+    {% for rule in automation_rules %}
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div class="flex-grow-1">
+                        <h6 class="card-title mb-1">
+                            <a href="{% url 'automation:detail' rule.pk %}" class="text-decoration-none">
+                                {{ rule.name }}
+                            </a>
+                        </h6>
+                        <p class="text-muted small mb-2">{{ rule.description|default:"No description"|truncatechars:100 }}</p>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-{% if rule.status == 'active' %}success{% elif rule.status == 'error' %}danger{% else %}secondary{% endif %}">
+                                {{ rule.get_status_display }}
+                            </span>
+                            <span class="badge bg-info">{{ rule.get_trigger_type_display }}</span>
+                        </div>
+                    </div>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown">
+                            <i class="fas fa-ellipsis-v"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'automation:detail' rule.pk %}">
+                                <i class="fas fa-eye me-2"></i>View Details
+                            </a></li>
+                            <li><a class="dropdown-item" href="{% url 'automation:detail' rule.pk %}">
+                                <i class="fas fa-edit me-2"></i>Edit Rule
+                            </a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" onclick="toggleRule('{{ rule.id }}')">
+                                <i class="fas fa-{% if rule.status == 'active' %}pause{% else %}play{% endif %} me-2"></i>
+                                {% if rule.status == 'active' %}Pause{% else %}Activate{% endif %}
+                            </a></li>
+                            <li><a class="dropdown-item" href="#" onclick="executeRule('{{ rule.id }}')">
+                                <i class="fas fa-bolt me-2"></i>Execute Now
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- Rule Configuration -->
+                <div class="mb-3">
+                    <h6 class="small text-muted mb-2">TRIGGER</h6>
+                    <div class="bg-light rounded p-2 small">
+                        <i class="fas fa-play-circle text-primary me-1"></i>
+                        <strong>{{ rule.get_trigger_type_display }}</strong>
+                        {% if rule.trigger_config %}
+                        <div class="mt-1 text-muted">
+                            {% for key, value in rule.trigger_config.items %}
+                            {{ key|title }}: {{ value }}{% if not forloop.last %}, {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Actions -->
+                <div class="mb-3">
+                    <h6 class="small text-muted mb-2">ACTIONS ({{ rule.actions.count }})</h6>
+                    {% for action in rule.actions.all|slice:":3" %}
+                    <div class="bg-light rounded p-2 small mb-1">
+                        <i class="fas fa-bolt text-warning me-1"></i>
+                        <strong>{{ action.get_action_type_display }}</strong>
+                        <div class="text-muted">{{ action.name }}</div>
+                    </div>
+                    {% empty %}
+                    <div class="text-muted small">No actions configured</div>
+                    {% endfor %}
+                    {% if rule.actions.count > 3 %}
+                    <div class="text-muted small">... and {{ rule.actions.count|subtract:3 }} more</div>
+                    {% endif %}
+                </div>
+                
+                <!-- Execution Stats -->
+                <div class="row g-2 small text-muted">
+                    <div class="col-6">
+                        <i class="fas fa-play me-1"></i>
+                        {{ rule.execution_count|default:0 }} executions
+                    </div>
+                    <div class="col-6">
+                        <i class="fas fa-check me-1"></i>
+                        {{ rule.success_count|default:0 }} successful
+                    </div>
+                    <div class="col-6">
+                        <i class="fas fa-calendar me-1"></i>
+                        Created {{ rule.created_at|timesince }} ago
+                    </div>
+                    <div class="col-6">
+                        {% if rule.last_executed %}
+                        <i class="fas fa-clock me-1"></i>
+                        Last run {{ rule.last_executed|timesince }} ago
+                        {% else %}
+                        <i class="fas fa-clock me-1"></i>
+                        Never executed
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card-footer bg-transparent">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <span class="status-indicator {% if rule.status == 'active' %}active{% elif rule.status == 'error' %}error{% else %}inactive{% endif %}"></span>
+                        <small class="text-muted ms-2">
+                            {% if rule.status == 'active' %}Running{% elif rule.status == 'error' %}Error{% else %}Paused{% endif %}
+                        </small>
+                    </div>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="toggleRule('{{ rule.id }}')">
+                            <i class="fas fa-{% if rule.status == 'active' %}pause{% else %}play{% endif %}"></i>
+                        </button>
+                        <button class="btn btn-outline-success" onclick="executeRule('{{ rule.id }}')">
+                            <i class="fas fa-bolt"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="card text-center py-5">
+            <div class="card-body">
+                <i class="fas fa-robot fa-3x text-muted mb-3"></i>
+                <h5>No automation rules found</h5>
+                <p class="text-muted mb-3">
+                    {% if request.GET.search or request.GET.status or request.GET.trigger_type %}
+                    Try adjusting your filters or search terms.
+                    {% else %}
+                    Automate your workflows by creating automation rules that respond to triggers and execute actions.
+                    {% endif %}
+                </p>
+                {% if not request.GET.search and not request.GET.status and not request.GET.trigger_type %}
+                <a href="{% url 'automation:create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>
+                    Create First Rule
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+{% include 'components/pagination.html' with page_obj=page_obj %}
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleRule(ruleId) {
+    fetch(`/automation/${ruleId}/toggle/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Failed to toggle rule: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error toggling rule:', error);
+        alert('Failed to toggle rule');
+    });
+}
+
+function executeRule(ruleId) {
+    if (confirm('Are you sure you want to execute this rule now?')) {
+        fetch(`/automation/${ruleId}/execute/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Rule executed successfully!');
+                location.reload();
+            } else {
+                alert('Failed to execute rule: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error executing rule:', error);
+            alert('Failed to execute rule');
+        });
+    }
+}
+</script>
+{% endblock %}
